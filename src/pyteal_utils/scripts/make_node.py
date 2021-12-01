@@ -36,6 +36,20 @@ def main(network: str, path: Path, force: bool):
         ]
     )
 
+    if network == "private_dev":
+        subprocess.call(
+            [
+                "algocfg",
+                "-d",
+                str(path / "Primary"),
+                "set",
+                "-p",
+                "EnableDeveloperAPI",
+                "-v",
+                "true",
+            ]
+        )
+
 
 def main_args():
     import argparse
