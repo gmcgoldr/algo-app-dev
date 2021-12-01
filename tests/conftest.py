@@ -13,6 +13,11 @@ def node_dir() -> Path:
 
 
 @pytest.fixture(scope="module")
+def num_wait() -> int:
+    return os.getenv("ALGORAND_WAIT_ROUNDS")
+
+
+@pytest.fixture(scope="module")
 def algod_client(node_dir: Path) -> AlgodClient:
     return clients.build_algod_local_client(node_dir)
 

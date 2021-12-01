@@ -1,0 +1,569 @@
+import base64
+from typing import Dict, List, NamedTuple, Tuple, Type, Union
+
+import algosdk as ag
+import pyteal as tl
+from algosdk.future import transaction
+from algosdk.v2client.algod import AlgodClient
+
+Key = Union[str, bytes]
+TType = Union[Type[tl.Int], Type[tl.Bytes]]
+TValue = Union[tl.Int, tl.Bytes]
+
+ZERO = tl.Int(0)
+ONE = tl.Int(1)
+
+
+class AppInfo(NamedTuple):
+    """Information to find an app on the ledger."""
+
+    app_id: int
+    address: str
+
+    @staticmethod
+    def from_result(result: Dict) -> "AppInfo":
+        app_id = result.get("application-index", None)
+        if app_id is None:
+            return None
+        address = ag.encoding.encode_address(
+            ag.encoding.checksum(b"appID" + app_id.to_bytes(8, "big"))
+        )
+        return AppInfo(app_id=app_id, address=address)
+
+
+def extract_state_value(value: Dict):
+    """Extract the value from app info state value data."""
+    if value is None:
+        return None
+    if value.get("type", None) == 1:
+        value = value.get("bytes", None)
+        value = base64.b64decode(value)
+    elif value.get("type", None) == 2:
+        value = value.get("uint", None)
+    return value
+
+
+def get_app_global_key(app_state: Dict, key: str) -> Union[int, bytes]:
+    """
+    Return the value for the given `key` in `app_id`'s global data.
+    """
+    key = base64.b64encode(key.encode("utf8")).decode("ascii")
+    for key_state in app_state.get("params", {}).get("global-state", []):
+        if key_state.get("key", None) != key:
+            continue
+        return extract_state_value(key_state.get("value", None))
+    return None
+
+
+def get_app_local_key(account_state: Dict, app_id: int, key: str) -> Union[int, bytes]:
+    """
+    Return the value for the given `key` in `app_id`'s local data for account
+    `address`.
+    """
+    key = base64.b64encode(key.encode("utf8")).decode("ascii")
+    for app_state in account_state.get("apps-local-state", []):
+        if app_state.get("id", None) != app_id:
+            continue
+        for key_state in app_state.get("key-value", []):
+            if key_state.get("key", None) != key:
+                continue
+            return extract_state_value(key_state.get("value", None))
+    return None
+
+
+def compile_expr(client: AlgodClient, expr: tl.Expr) -> bytes:
+    """
+    Compile a teal expression code into the program bytes.
+
+    Args:
+        client: the client connected to a node with the developer API
+        expr: the teal expression
+
+    Returns:
+        the teal program bytes
+    """
+    source = tl.compileTeal(
+        expr,
+        mode=tl.Mode.Application,
+        version=tl.MAX_TEAL_VERSION,
+    )
+    result = client.compile(source)
+    result = result["result"]
+    return base64.b64decode(result)
+
+
+class State:
+    """Describes an app's state."""
+
+    class KeyInfo:
+        """
+        Information about an app state key and associated value.
+        """
+
+        def __init__(self, key: Key, ttype: TType, default: TValue):
+            key = self.as_bytes(key)
+            if len(key) > 64:
+                raise ValueError(f"key too long: {key}")
+
+            # the key as bytes
+            self.key = key
+            # the tl bytes expression
+            self.tbytes = tl.Bytes(key)
+            # the tl type of the key's value
+            self.ttype = ttype
+            # the tl expression to populate the initial value (can be None)
+            self.default = default
+
+        @staticmethod
+        def as_bytes(key: Key) -> bytes:
+            if isinstance(key, bytes):
+                return key
+            else:
+                return key.encode("utf8")
+
+    def __init__(self, infos: List[KeyInfo]):
+        self._key_to_info = {i.key: i for i in infos}
+        self._maybe_values: Dict[bytes, tl.MaybeValue] = {}
+
+    def key_to_info(self, key: Key):
+        return self._key_to_info[State.KeyInfo.as_bytes(key)]
+
+    def key_infos(self) -> List[KeyInfo]:
+        return list(self._key_to_info.values())
+
+    def schema(self) -> transaction.StateSchema:
+        """Build the schema for this state."""
+        num_uints = 0
+        num_byte_slices = 0
+
+        for info in self._key_to_info.values():
+            if info.ttype is tl.Int:
+                num_uints += 1
+            elif info.ttype is tl.Bytes:
+                num_byte_slices += 1
+
+        return transaction.StateSchema(
+            num_uints=num_uints, num_byte_slices=num_byte_slices
+        )
+
+
+class StateGlobalExternal(State):
+    """
+    Read global state values which might or might not be present. This is the
+    only way to interface with external apps, and can also be used to access
+    values which might not yet be set in the current app.
+
+    An object `MaybeValue` is itself a teal expression. It is also stateful,
+    in that the expression, once constructed, stores the value into a slot,
+    and that slot is cached in the `MaybeValue` object.
+
+    For example:
+
+    ```
+    myabe = App.globalGetEx(app_id, key)
+    Seq(maybe, maybe.value())
+    ```
+
+    In this snippet, the sequence first stores the values retreived by get,
+    then the value is loaded onto the stack and can be used. To re-used the
+    value from the given `key`, it is necessary to use the *same* `maybe`
+    objet, as this one remembers which slot the value is stored in.
+
+    Making a second `MaybeValue` object whith the same key will not re-use the
+    stored values from the first object. The second object could also evaluated
+    to store the same value into a *new* slot. But without this step, it's
+    `load` method is oblivious to the slots used by the `globalGetEx` call.
+    """
+
+    def __init__(self, keys: List[State.KeyInfo], app_id: tl.Expr):
+        """
+        Build the read-only global state representation for app at `app_id`.
+
+        Args:
+            app_id: expression evaluating to the id of an app in the app array
+        """
+        super().__init__(keys)
+        self.app_id = app_id
+
+    def get_ex(self, key: Key) -> tl.MaybeValue:
+        """
+        Get the `MaybeValue` object for `key`.
+
+        The object itself is an expression to load the value into a slot. It
+        also has members for accessing that value.
+
+        After evaluating `MaybeValue`, then that object can be used to generate
+        expression to access the value: `MaybeValue.value`. This means that a
+        `MaybeValue` object must be cached if its value is to be accessed more
+        than once, so it can remember which slot the value was stored in.
+        """
+        info = self.key_to_info(key)
+        maybe_value = self._maybe_values.get(info.key, None)
+        if maybe_value is None:
+            maybe_value = tl.App.globalGetEx(self.app_id, info.tbytes)
+            self._maybe_values[info.key] = maybe_value
+        return maybe_value
+
+    def load_ex_value(self, key: Key) -> tl.Expr:
+        """
+        Load a `MaybeValue` into a slot and return its value.
+
+        If the key was previously loaded, the same scratch slot will be used.
+        However, this will call `globalGetEx` and store its result anew, albeit
+        in the same slot.
+
+        The cost of repeating these operations can be avoided by pre-storing
+        the value into a slot at the start of the program, and then accessing
+        its `load` member subsequently.
+
+        ```
+        maybe = state.get_ex(key)
+        expr = Seq(
+            maybe,
+            # ... some teal logic, with possible branches
+            maybe.value()
+            # ... some more teal logic
+            maybe.value()
+        )
+        ```
+        """
+        maybe_value = self.get_ex(key)
+        return tl.Seq(maybe_value, maybe_value.value())
+
+    def load_ex_has_value(self, key: Key) -> tl.Expr:
+        """
+        Load a `MaybeValue` into a slot and return if it has a value.
+
+        See `load_ex_value` for notes on the `globalGetEx` calls.
+        """
+        maybe_value = self.get_ex(key)
+        return tl.Seq(maybe_value, maybe_value.hasValue())
+
+
+class StateGlobal(StateGlobalExternal):
+    def __init__(
+        self,
+        keys: List[State.KeyInfo],
+    ):
+        """See `StateGlobalRead` but with write capability."""
+        # only state of the current application can be written
+        super().__init__(keys, tl.Global.current_application_id())
+
+    def get(self, key: Key) -> tl.Expr:
+        """Build the expression to get the state value at `key`"""
+        info = self.key_to_info(key)
+        return tl.App.globalGet(info.tbytes)
+
+    def set(self, key: Key, value: TValue) -> tl.Expr:
+        """Build the expression to set the state value at `key`"""
+        info = self.key_to_info(key)
+        return tl.App.globalPut(info.tbytes, value)
+
+    def constructor(self) -> tl.Expr:
+        """
+        Build the expression to set the initial state values for those keys
+        with an `default` member.
+        """
+        return tl.Seq(
+            *[
+                tl.App.globalPut(i.tbytes, i.default)
+                for i in self.key_infos()
+                if i.default
+            ]
+        )
+
+
+class StateLocalExternal(State):
+    """See `StateGlobalExternal`, but for the local state."""
+
+    def __init__(self, keys: List[State.KeyInfo], app_id: tl.Expr, account: tl.Expr):
+        """
+        Build the read-only local state representation for app at `app_id` in
+        `account`.
+
+        Args:
+            app_id: expression evaluating to the id of an app in the app array
+            account: expression evaluating to the account whose state is to be
+                accessed
+        """
+        super().__init__(keys)
+        self.app_id = app_id
+        self.account = account
+
+    def get_ex(self, key: Key) -> tl.MaybeValue:
+        """
+        Get the `MaybeValue` object for `key`.
+
+        See `StateGlobalExternal.get_ex`.
+        """
+        info = self.key_to_info(key)
+        maybe_value = self._maybe_values.get(info.key, None)
+        if maybe_value is None:
+            maybe_value = tl.App.localGetEx(self.account, self.app_id, info.tbytes)
+            self._maybe_values[info.key] = maybe_value
+        return maybe_value
+
+    def load_ex_value(self, key: Key) -> tl.Expr:
+        """
+        Load a `MaybeValue` into a slot and return its value.
+
+        See `StateGlobalExternal.load_ex_value`.
+        """
+        maybe_value = self.get_ex(key)
+        return tl.Seq(maybe_value, maybe_value.value())
+
+    def load_ex_has_value(self, key: Key) -> tl.Expr:
+        """
+        Load a `MaybeValue` into a slot and return if it has a value.
+
+        See `StateGlobalExternal.load_ex_has_value`.
+        """
+        maybe_value = self.get_ex(key)
+        return tl.Seq(maybe_value, maybe_value.hasValue())
+
+
+class StateLocal(StateLocalExternal):
+    def __init__(
+        self,
+        keys: List[State.KeyInfo],
+    ):
+        """
+        Build the local state representation for app at `app_id` in `account`.
+
+        Args:
+            app_id: expression evaluating to the id of an app in the app array
+            account: expression evaluating to the account whose state is to be
+                accessed
+        """
+        # only state of the current application for the sender can be written
+        super().__init__(keys, tl.Global.current_application_id(), tl.Txn.sender())
+
+    def get(self, key: Key) -> tl.Expr:
+        """Build the expression to get the state value at `key`"""
+        info = self.key_to_info(key)
+        return tl.App.localGet(self.account, info.tbytes)
+
+    def set(self, key: Key, value: TValue) -> tl.Expr:
+        """Build the expression to set the state value at `key`"""
+        info = self.key_to_info(key)
+        return tl.App.localPut(self.account, info.tbytes, value)
+
+    def constructor(self) -> tl.Expr:
+        """
+        Build the expression to set the initial state values for those keys
+        with an `default` member.
+        """
+        return tl.Seq(
+            *[
+                tl.App.localPut(self.account, i.tbytes, i.default)
+                for i in self.key_infos()
+                if i.default
+            ]
+        )
+
+
+class AppBuilder(NamedTuple):
+    """
+    Build the program data required for an app to execute the provided
+    expressions, with the provided app state.
+
+    The app is specified as individual branches. At most one of those branches
+    will execute when the application is called.
+
+    Branches that can execute for an `ApplicationCall` transaction:
+
+    - `on_create`: this expression is run when the app is first created only,
+      and if it returns zero, the app cannot be created.
+    - `on_delete`: this expression is run when a `DeleteApplication`
+      transaction is sent, and if it returns zero the app cannot be deleted.
+    - `on_update`: this expression is run when a `UpdateApplication`
+      transaction is sent, and if it returns zero the app cannot be updated.
+    - `on_opt_in`: this expression is run when a `OptIn` transaction is sent,
+      and if it returns zero the app cannot be opted-in by accounts.
+    - `on_close_out`: this expression is run when a `CloseOut` transaction is
+      sent, and if it returns zero the app cannot be closed out by accounts.
+    - `invokations[name]`: these expressions are run when a `NoOp` transaction
+      is sent, and the first argument passed to the call is the bytes encoding
+      of `name`.
+    - `on_no_op`: this expression is run when a `NoOp` transaction is sent, and
+      no invokation matches the first call argument (if supplied). This is the
+      "default invokation".
+
+    Branch that executes for a `ClearState` transaction:
+
+    - `on_clear`: this expression is run regardless of return value, but any
+      state changes made in the expression are not committed if the return
+      value is zero.
+
+    The default app implements the following functionality:
+
+    - creation is allowed and sets the global state defaults
+    - deletion is not allowed
+    - updating is not allowed
+    - opt in is allowed and sets the local state defaults
+    - close out is not allowed
+    - clear is allowed
+    - no invokations
+    - no default invokation
+    """
+
+    on_create: tl.Expr = None
+    on_delete: tl.Expr = None
+    on_update: tl.Expr = None
+    on_opt_in: tl.Expr = None
+    on_close_out: tl.Expr = None
+    on_clear: tl.Expr = None
+    invokations: Dict[str, tl.Expr] = None
+    on_no_op: tl.Expr = None
+    global_state: StateGlobal = None
+    local_state: StateLocal = None
+
+    def approval_expr(self) -> tl.Expr:
+        """
+        Assemble the provided expressions into the approval expression, by
+        joining them in a single branching control flow.
+        """
+        # Each branch is a pair of expressions: one which tests if the branch
+        # should be executed, and another which is the branche's logic. If the
+        # branch logic returns 0, then the app state is unchanged, no matter what
+        # operations were performed during its exectuion (i.e. it rolls back). Only
+        # the first matched branch is executed.
+        branches = []
+
+        on_create = self.on_create
+        if not on_create:
+            if self.global_state is not None:
+                on_create = tl.Seq(self.global_state.constructor(), tl.Return(ONE))
+            else:
+                on_create = tl.Return(ONE)
+        branches.append([tl.Txn.application_id() == ZERO, on_create])
+
+        if self.on_delete:
+            branches.append(
+                [
+                    tl.Txn.on_completion() == tl.OnComplete.DeleteApplication,
+                    self.on_delete,
+                ]
+            )
+
+        if self.on_update:
+            branches.append(
+                [
+                    tl.Txn.on_completion() == tl.OnComplete.UpdateApplication,
+                    self.on_update,
+                ]
+            )
+
+        on_opt_in = self.on_opt_in
+        if not on_opt_in:
+            if self.local_state is not None:
+                on_opt_in = tl.Seq(self.local_state.constructor(), tl.Return(ONE))
+            else:
+                on_opt_in = tl.Return(ONE)
+        branches.append([tl.Txn.on_completion() == tl.OnComplete.OptIn, on_opt_in])
+
+        if self.on_close_out:
+            branches.append(
+                [tl.Txn.on_completion() == tl.OnComplete.CloseOut, self.on_close_out]
+            )
+
+        # handle custon invokations with named arg
+        invokations = {} if self.invokations is None else self.invokations
+        for name, expr in invokations.items():
+            branches.append(
+                [
+                    # use a an invokation branch for no-op calls with the branch
+                    # name as arg 0
+                    tl.And(
+                        tl.Txn.on_completion() == tl.OnComplete.NoOp,
+                        tl.If(tl.Txn.application_args.length() >= ONE)
+                        # if there is an argument passed, then it must match
+                        # the invokation name
+                        .Then(tl.Txn.application_args[0] == tl.Bytes(name))
+                        # otherwise fail the branch
+                        .Else(ZERO),
+                    ),
+                    expr,
+                ]
+            )
+
+        # if no invokation matched, then try the default no-op
+        if self.on_no_op:
+            branches.append(
+                [tl.Txn.on_completion() == tl.OnComplete.NoOp, self.on_no_op]
+            )
+
+        # fallthrough: if no branch is selected, reject
+        branches.append([ONE, tl.Return(ZERO)])
+
+        return tl.Cond(*branches)
+
+    def create_txn(
+        self, client: AlgodClient, address: str, params: transaction.SuggestedParams
+    ) -> transaction.ApplicationCreateTxn:
+        """
+        Build the transaction to create the app.
+
+        Args:
+            client: the client connected to a node with the developer API, used
+                for compiling and to send the transaction
+            address: the address of the app creator sending the transaction
+            params: the transaction parameters
+        """
+        # ensure a valid clear program, interpret None as return zero
+        on_clear = self.on_clear if self.on_clear is not None else tl.Return(ZERO)
+        # create empty schemas if none are provided
+        schema_global = (
+            self.global_state.schema()
+            if self.global_state is not None
+            else transaction.StateSchema()
+        )
+        schema_local = (
+            self.local_state.schema()
+            if self.local_state is not None
+            else transaction.StateSchema()
+        )
+        return transaction.ApplicationCreateTxn(
+            # this will be the app creator
+            sender=address,
+            sp=params,
+            # no state change requested in this transaciton beyond app creation
+            on_complete=transaction.OnComplete.NoOpOC.real,
+            # the program to handle app state changes
+            approval_program=compile_expr(client, self.approval_expr()),
+            # the program to run when an account forces an opt-out
+            clear_program=compile_expr(client, on_clear),
+            # the amount of storage used by the app
+            global_schema=schema_global,
+            local_schema=schema_local,
+        )
+
+    def update_txn(
+        self,
+        client: AlgodClient,
+        address: str,
+        params: transaction.SuggestedParams,
+        app_id: int,
+    ) -> transaction.ApplicationUpdateTxn:
+        """
+        Build the transaction to update an app with this data.
+
+        NOTE: the schema cannot be changed in an update transaction, meaning
+        the state must be the same as that already used in `app_id`.
+
+        Args:
+            client: the client connected to a node with the developer API, used
+                for compiling and to send the transaction
+            address: the address of the app creator sending the transaction
+            params: the transaction parameters
+            app_id: the id of the exisiting application to update
+        """
+        # ensure a valid clear program, interpret None as return zero
+        on_clear = self.on_clear if self.on_clear is not None else tl.Return(ZERO)
+        return transaction.ApplicationUpdateTxn(
+            sender=address,
+            sp=params,
+            index=app_id,
+            approval_program=compile_expr(client, self.approval_expr()),
+            clear_program=compile_expr(client, on_clear),
+        )
