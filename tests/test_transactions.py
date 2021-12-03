@@ -4,6 +4,7 @@ from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
 
 from pyteal_utils import transactions
+from pyteal_utils.utils import AccountMeta
 
 
 def test_fund_from_genesis_funds_new_account(
@@ -28,7 +29,7 @@ def test_get_confirmed_transaction_returns_info(
     )
     if num_wait:
         _ = transactions.get_confirmed_transaction(algod_client, txid, num_wait)
-    account2 = transactions.AccountInfo(*ag.account.generate_account())
+    account2 = AccountMeta(*ag.account.generate_account())
 
     params = algod_client.suggested_params()
 
@@ -52,8 +53,8 @@ def test_get_confirmed_transaction_returns_info(
 
 
 def test_groups_transactions(algod_client: AlgodClient):
-    account1 = transactions.AccountInfo(*ag.account.generate_account())
-    account2 = transactions.AccountInfo(*ag.account.generate_account())
+    account1 = AccountMeta(*ag.account.generate_account())
+    account2 = AccountMeta(*ag.account.generate_account())
 
     params = algod_client.suggested_params()
 

@@ -1,4 +1,4 @@
-from typing import Dict, List, NamedTuple, Tuple
+from typing import Dict, List, Tuple
 
 import algosdk as ag
 from algosdk.future import transaction
@@ -7,11 +7,7 @@ from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
 
 from .clients import get_wallet_handle, get_wallet_id
-
-
-class AccountInfo(NamedTuple):
-    key: str
-    address: str
+from .utils import AccountMeta
 
 
 def get_confirmed_transactions(
@@ -71,7 +67,7 @@ def get_confirmed_transaction(
 
 def fund_from_genesis(
     algod_client: AlgodClient, kmd_client: KMDClient, amount: int
-) -> Tuple[AccountInfo, str]:
+) -> Tuple[AccountMeta, str]:
     """
     Create a new account and fund it from the account that received the gensis
     funds.
@@ -96,18 +92,20 @@ def fund_from_genesis(
             raise RuntimeError("funded account not found in wallet")
         sender_address = keys[0]
 
-    key, address = ag.account.generate_account()
+    account = AccountMeta(*ag.account.generate_account())
 
     # Transfer algos to the escrow account
     params = algod_client.suggested_params()
     params.fee = 0  # use the minimum network fee
-    txn = PaymentTxn(sender=sender_address, sp=params, receiver=address, amt=amount)
+    txn = PaymentTxn(
+        sender=sender_address, sp=params, receiver=account.address, amt=amount
+    )
     # Sign with the sender account keys, managed by its wallet
     with get_wallet_handle(kmd_client, wallet_id, "") as handle:
         txn = kmd_client.sign_transaction(handle, "", txn)
     txid = algod_client.send_transaction(txn)
 
-    return AccountInfo(key, address), txid
+    return account, txid
 
 
 def group_txns(*txns: transaction.Transaction) -> List[transaction.Transaction]:

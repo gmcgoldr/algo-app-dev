@@ -14,20 +14,10 @@ from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
 
 from pyteal_utils import apps, transactions
+from pyteal_utils.clients import get_app_global_key, get_app_local_key
+from pyteal_utils.utils import AccountMeta, AppMeta
 
 MSG_REJECT = r".*transaction rejected by ApprovalProgram$"
-
-
-def test_app_info_builds_from_result():
-    result = {"application-index": 0}
-    info = apps.AppInfo.from_result(result)
-    assert info.app_id == 0
-    assert info.address == "6X7XJO6FX3SHUK2OUL46QBQDSNO67RAFK6O73KJD4IVOMTSOIYANOIVWNU"
-
-
-def test_extract_state_value_returns_value():
-    assert apps.extract_state_value({"type": 1, "bytes": "YQ==", "uint": None}) == b"a"
-    assert apps.extract_state_value({"type": 2, "bytes": b"", "uint": 1}) == 1
 
 
 @pytest.fixture
@@ -61,7 +51,7 @@ def test_state_builds_schema(state: apps.State):
 
 def fund_account(
     algod_client: AlgodClient, kmd_client: KMDClient, num_wait: int
-) -> transactions.AccountInfo:
+) -> AccountMeta:
     account, txid = transactions.fund_from_genesis(
         algod_client, kmd_client, ag.util.algos_to_microalgos(1000)
     )
@@ -73,12 +63,12 @@ def fund_account(
 @pytest.fixture
 def funded_account(
     algod_client: AlgodClient, kmd_client: KMDClient, num_wait: int
-) -> transactions.AccountInfo:
+) -> AccountMeta:
     return fund_account(algod_client, kmd_client, num_wait)
 
 
 def test_app_builder_default_app_creates(
-    algod_client: AlgodClient, funded_account: transactions.AccountInfo, num_wait: int
+    algod_client: AlgodClient, funded_account: AccountMeta, num_wait: int
 ):
     app = apps.AppBuilder()
 
@@ -89,14 +79,14 @@ def test_app_builder_default_app_creates(
     txn_info = transactions.get_confirmed_transaction(
         algod_client, txid, num_wait if num_wait else 1
     )
-    app_info = apps.AppInfo.from_result(txn_info)
+    app_info = AppMeta.from_result(txn_info)
 
     assert app_info.app_id
     assert app_info.address
 
 
 def test_app_builder_default_app_opts_in_and_clears(
-    algod_client: AlgodClient, funded_account: transactions.AccountInfo, num_wait: int
+    algod_client: AlgodClient, funded_account: AccountMeta, num_wait: int
 ):
     app = apps.AppBuilder()
 
@@ -107,7 +97,7 @@ def test_app_builder_default_app_opts_in_and_clears(
     txn_info = transactions.get_confirmed_transaction(
         algod_client, txid, num_wait if num_wait else 1
     )
-    app_info = apps.AppInfo.from_result(txn_info)
+    app_info = AppMeta.from_result(txn_info)
 
     txn = ApplicationOptInTxn(
         funded_account.address, algod_client.suggested_params(), app_info.app_id
@@ -133,7 +123,7 @@ def test_app_builder_default_app_opts_in_and_clears(
 
 
 def test_app_builder_default_app_rejects_other(
-    algod_client: AlgodClient, funded_account: transactions.AccountInfo, num_wait: int
+    algod_client: AlgodClient, funded_account: AccountMeta, num_wait: int
 ):
     app = apps.AppBuilder()
 
@@ -144,7 +134,7 @@ def test_app_builder_default_app_rejects_other(
     txn_info = transactions.get_confirmed_transaction(
         algod_client, txid, num_wait if num_wait else 1
     )
-    app_info = apps.AppInfo.from_result(txn_info)
+    app_info = AppMeta.from_result(txn_info)
 
     txn = ApplicationDeleteTxn(
         funded_account.address, algod_client.suggested_params(), app_info.app_id
@@ -184,7 +174,7 @@ def test_app_builder_default_app_rejects_other(
 
 
 def test_app_builder_default_app_constructs_defaults(
-    algod_client: AlgodClient, funded_account: transactions.AccountInfo, num_wait: int
+    algod_client: AlgodClient, funded_account: AccountMeta, num_wait: int
 ):
     app = apps.AppBuilder(
         global_state=apps.StateGlobal([apps.State.KeyInfo("a", tl.Int, apps.ONE)]),
@@ -200,10 +190,10 @@ def test_app_builder_default_app_constructs_defaults(
     txn_info = transactions.get_confirmed_transaction(
         algod_client, txid, num_wait if num_wait else 1
     )
-    app_info = apps.AppInfo.from_result(txn_info)
+    app_info = AppMeta.from_result(txn_info)
 
     app_state = algod_client.application_info(app_info.app_id)
-    assert apps.get_app_global_key(app_state, "a") == 1
+    assert get_app_global_key(app_state, "a") == 1
 
     txn = ApplicationOptInTxn(
         funded_account.address, algod_client.suggested_params(), app_info.app_id
@@ -213,7 +203,7 @@ def test_app_builder_default_app_constructs_defaults(
         _ = transactions.get_confirmed_transaction(algod_client, txid, num_wait)
 
     account_state = algod_client.account_info(funded_account.address)
-    assert apps.get_app_local_key(account_state, app_info.app_id, "b") == b"abc"
+    assert get_app_local_key(account_state, app_info.app_id, "b") == b"abc"
 
 
 @pytest.fixture
@@ -282,10 +272,10 @@ def stateful_app() -> apps.AppBuilder:
 
 def create_app(
     algod_client: AlgodClient,
-    funded_account: transactions.AccountInfo,
+    funded_account: AccountMeta,
     num_wait: int,
     stateful_app: apps.AppBuilder,
-) -> apps.AppInfo:
+) -> AppMeta:
     txn = stateful_app.create_txn(
         algod_client, funded_account.address, algod_client.suggested_params()
     )
@@ -293,12 +283,12 @@ def create_app(
     txn_info = transactions.get_confirmed_transaction(
         algod_client, txid, num_wait if num_wait else 1
     )
-    return apps.AppInfo.from_result(txn_info)
+    return AppMeta.from_result(txn_info)
 
 
 def test_app_builder_create_constructs_and_returns(
     algod_client: AlgodClient,
-    funded_account: transactions.AccountInfo,
+    funded_account: AccountMeta,
     num_wait: int,
     stateful_app: apps.AppBuilder,
 ):
@@ -307,25 +297,25 @@ def test_app_builder_create_constructs_and_returns(
     account_state = algod_client.account_info(funded_account.address)
 
     # fmt: off
-    assert apps.get_app_global_key(app_state, "created") == 1
-    assert apps.get_app_global_key(app_state, "updated") == 0
-    assert apps.get_app_global_key(app_state, "opted_in") == 0
-    assert apps.get_app_global_key(app_state, "closed") == 0
-    assert apps.get_app_global_key(app_state, "cleared") == 0
-    assert apps.get_app_global_key(app_state, "invoked_a") == 0
-    assert apps.get_app_global_key(app_state, "invoked_ab") == 0
-    assert apps.get_app_global_key(app_state, "invoked_default") == 0
+    assert get_app_global_key(app_state, "created") == 1
+    assert get_app_global_key(app_state, "updated") == 0
+    assert get_app_global_key(app_state, "opted_in") == 0
+    assert get_app_global_key(app_state, "closed") == 0
+    assert get_app_global_key(app_state, "cleared") == 0
+    assert get_app_global_key(app_state, "invoked_a") == 0
+    assert get_app_global_key(app_state, "invoked_ab") == 0
+    assert get_app_global_key(app_state, "invoked_default") == 0
 
-    assert apps.get_app_local_key(account_state, app_info.app_id, "opted_in") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_a") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_ab") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_default") is None
+    assert get_app_local_key(account_state, app_info.app_id, "opted_in") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_a") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_ab") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_default") is None
     # fmt: on
 
 
 def test_app_builder_delete_is_called(
     algod_client: AlgodClient,
-    funded_account: transactions.AccountInfo,
+    funded_account: AccountMeta,
     num_wait: int,
     stateful_app: apps.AppBuilder,
 ):
@@ -344,16 +334,16 @@ def test_app_builder_delete_is_called(
     account_state = algod_client.account_info(funded_account.address)
 
     # fmt: off
-    assert apps.get_app_local_key(account_state, app_info.app_id, "opted_in") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_a") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_ab") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_default") is None
+    assert get_app_local_key(account_state, app_info.app_id, "opted_in") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_a") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_ab") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_default") is None
     # fmt: on
 
 
 def test_app_builder_update_is_called(
     algod_client: AlgodClient,
-    funded_account: transactions.AccountInfo,
+    funded_account: AccountMeta,
     num_wait: int,
     stateful_app: apps.AppBuilder,
 ):
@@ -375,25 +365,23 @@ def test_app_builder_update_is_called(
     account_state = algod_client.account_info(funded_account.address)
 
     # fmt: off
-    assert apps.get_app_global_key(app_state, "created") == 1
-    assert apps.get_app_global_key(app_state, "updated") == 1
-    assert apps.get_app_global_key(app_state, "opted_in") == 0
-    assert apps.get_app_global_key(app_state, "closed") == 0
-    assert apps.get_app_global_key(app_state, "cleared") == 0
-    assert apps.get_app_global_key(app_state, "invoked_a") == 0
-    assert apps.get_app_global_key(app_state, "invoked_ab") == 0
-    assert apps.get_app_global_key(app_state, "invoked_default") == 0
+    assert get_app_global_key(app_state, "created") == 1
+    assert get_app_global_key(app_state, "updated") == 1
+    assert get_app_global_key(app_state, "opted_in") == 0
+    assert get_app_global_key(app_state, "closed") == 0
+    assert get_app_global_key(app_state, "cleared") == 0
+    assert get_app_global_key(app_state, "invoked_a") == 0
+    assert get_app_global_key(app_state, "invoked_ab") == 0
+    assert get_app_global_key(app_state, "invoked_default") == 0
 
-    assert apps.get_app_local_key(account_state, app_info.app_id, "opted_in") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_a") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_ab") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_default") is None
+    assert get_app_local_key(account_state, app_info.app_id, "opted_in") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_a") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_ab") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_default") is None
     # fmt: on
 
 
-def opt_in(
-    client: AlgodClient, app_id: int, account: transactions.AccountInfo, num_wait: int
-):
+def opt_in(client: AlgodClient, app_id: int, account: AccountMeta, num_wait: int):
     txn = ApplicationOptInTxn(account.address, client.suggested_params(), app_id)
     txid = client.send_transaction(txn.sign(account.key))
     if num_wait:
@@ -402,7 +390,7 @@ def opt_in(
 
 def test_app_builder_opt_in_updates_state(
     algod_client: AlgodClient,
-    funded_account: transactions.AccountInfo,
+    funded_account: AccountMeta,
     num_wait: int,
     stateful_app: apps.AppBuilder,
 ):
@@ -413,25 +401,25 @@ def test_app_builder_opt_in_updates_state(
     account_state = algod_client.account_info(funded_account.address)
 
     # fmt: off
-    assert apps.get_app_global_key(app_state, "created") == 1
-    assert apps.get_app_global_key(app_state, "updated") == 0
-    assert apps.get_app_global_key(app_state, "opted_in") == 1
-    assert apps.get_app_global_key(app_state, "closed") == 0
-    assert apps.get_app_global_key(app_state, "cleared") == 0
-    assert apps.get_app_global_key(app_state, "invoked_a") == 0
-    assert apps.get_app_global_key(app_state, "invoked_ab") == 0
-    assert apps.get_app_global_key(app_state, "invoked_default") == 0
+    assert get_app_global_key(app_state, "created") == 1
+    assert get_app_global_key(app_state, "updated") == 0
+    assert get_app_global_key(app_state, "opted_in") == 1
+    assert get_app_global_key(app_state, "closed") == 0
+    assert get_app_global_key(app_state, "cleared") == 0
+    assert get_app_global_key(app_state, "invoked_a") == 0
+    assert get_app_global_key(app_state, "invoked_ab") == 0
+    assert get_app_global_key(app_state, "invoked_default") == 0
 
-    assert apps.get_app_local_key(account_state, app_info.app_id, "opted_in") == 1
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_a") == 0
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_ab") == 0
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_default") == 0
+    assert get_app_local_key(account_state, app_info.app_id, "opted_in") == 1
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_a") == 0
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_ab") == 0
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_default") == 0
     # fmt: on
 
 
 def test_app_builder_close_updates_state(
     algod_client: AlgodClient,
-    funded_account: transactions.AccountInfo,
+    funded_account: AccountMeta,
     num_wait: int,
     stateful_app: apps.AppBuilder,
 ):
@@ -449,25 +437,25 @@ def test_app_builder_close_updates_state(
     account_state = algod_client.account_info(funded_account.address)
 
     # fmt: off
-    assert apps.get_app_global_key(app_state, "created") == 1
-    assert apps.get_app_global_key(app_state, "updated") == 0
-    assert apps.get_app_global_key(app_state, "opted_in") == 1
-    assert apps.get_app_global_key(app_state, "closed") == 1
-    assert apps.get_app_global_key(app_state, "cleared") == 0
-    assert apps.get_app_global_key(app_state, "invoked_a") == 0
-    assert apps.get_app_global_key(app_state, "invoked_ab") == 0
-    assert apps.get_app_global_key(app_state, "invoked_default") == 0
+    assert get_app_global_key(app_state, "created") == 1
+    assert get_app_global_key(app_state, "updated") == 0
+    assert get_app_global_key(app_state, "opted_in") == 1
+    assert get_app_global_key(app_state, "closed") == 1
+    assert get_app_global_key(app_state, "cleared") == 0
+    assert get_app_global_key(app_state, "invoked_a") == 0
+    assert get_app_global_key(app_state, "invoked_ab") == 0
+    assert get_app_global_key(app_state, "invoked_default") == 0
 
-    assert apps.get_app_local_key(account_state, app_info.app_id, "opted_in") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_a") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_ab") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_default") is None
+    assert get_app_local_key(account_state, app_info.app_id, "opted_in") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_a") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_ab") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_default") is None
     # fmt: on
 
 
 def test_app_builder_clear_updates_state(
     algod_client: AlgodClient,
-    funded_account: transactions.AccountInfo,
+    funded_account: AccountMeta,
     num_wait: int,
     stateful_app: apps.AppBuilder,
 ):
@@ -485,25 +473,25 @@ def test_app_builder_clear_updates_state(
     account_state = algod_client.account_info(funded_account.address)
 
     # fmt: off
-    assert apps.get_app_global_key(app_state, "created") == 1
-    assert apps.get_app_global_key(app_state, "updated") == 0
-    assert apps.get_app_global_key(app_state, "opted_in") == 1
-    assert apps.get_app_global_key(app_state, "closed") == 0
-    assert apps.get_app_global_key(app_state, "cleared") == 1
-    assert apps.get_app_global_key(app_state, "invoked_a") == 0
-    assert apps.get_app_global_key(app_state, "invoked_ab") == 0
-    assert apps.get_app_global_key(app_state, "invoked_default") == 0
+    assert get_app_global_key(app_state, "created") == 1
+    assert get_app_global_key(app_state, "updated") == 0
+    assert get_app_global_key(app_state, "opted_in") == 1
+    assert get_app_global_key(app_state, "closed") == 0
+    assert get_app_global_key(app_state, "cleared") == 1
+    assert get_app_global_key(app_state, "invoked_a") == 0
+    assert get_app_global_key(app_state, "invoked_ab") == 0
+    assert get_app_global_key(app_state, "invoked_default") == 0
 
-    assert apps.get_app_local_key(account_state, app_info.app_id, "opted_in") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_a") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_ab") is None
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_default") is None
+    assert get_app_local_key(account_state, app_info.app_id, "opted_in") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_a") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_ab") is None
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_default") is None
     # fmt: on
 
 
 def test_app_builder_invokation_a_is_called(
     algod_client: AlgodClient,
-    funded_account: transactions.AccountInfo,
+    funded_account: AccountMeta,
     num_wait: int,
     stateful_app: apps.AppBuilder,
 ):
@@ -521,25 +509,25 @@ def test_app_builder_invokation_a_is_called(
     account_state = algod_client.account_info(funded_account.address)
 
     # fmt: off
-    assert apps.get_app_global_key(app_state, "created") == 1
-    assert apps.get_app_global_key(app_state, "updated") == 0
-    assert apps.get_app_global_key(app_state, "opted_in") == 1
-    assert apps.get_app_global_key(app_state, "closed") == 0
-    assert apps.get_app_global_key(app_state, "cleared") == 0
-    assert apps.get_app_global_key(app_state, "invoked_a") == 1
-    assert apps.get_app_global_key(app_state, "invoked_ab") == 0
-    assert apps.get_app_global_key(app_state, "invoked_default") == 0
+    assert get_app_global_key(app_state, "created") == 1
+    assert get_app_global_key(app_state, "updated") == 0
+    assert get_app_global_key(app_state, "opted_in") == 1
+    assert get_app_global_key(app_state, "closed") == 0
+    assert get_app_global_key(app_state, "cleared") == 0
+    assert get_app_global_key(app_state, "invoked_a") == 1
+    assert get_app_global_key(app_state, "invoked_ab") == 0
+    assert get_app_global_key(app_state, "invoked_default") == 0
 
-    assert apps.get_app_local_key(account_state, app_info.app_id, "opted_in") == 1
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_a") == 1
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_ab") == 0
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_default") == 0
+    assert get_app_local_key(account_state, app_info.app_id, "opted_in") == 1
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_a") == 1
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_ab") == 0
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_default") == 0
     # fmt: on
 
 
 def test_app_builder_invokation_ab_is_called(
     algod_client: AlgodClient,
-    funded_account: transactions.AccountInfo,
+    funded_account: AccountMeta,
     num_wait: int,
     stateful_app: apps.AppBuilder,
 ):
@@ -557,25 +545,25 @@ def test_app_builder_invokation_ab_is_called(
     account_state = algod_client.account_info(funded_account.address)
 
     # fmt: off
-    assert apps.get_app_global_key(app_state, "created") == 1
-    assert apps.get_app_global_key(app_state, "updated") == 0
-    assert apps.get_app_global_key(app_state, "opted_in") == 1
-    assert apps.get_app_global_key(app_state, "closed") == 0
-    assert apps.get_app_global_key(app_state, "cleared") == 0
-    assert apps.get_app_global_key(app_state, "invoked_a") == 0
-    assert apps.get_app_global_key(app_state, "invoked_ab") == 1
-    assert apps.get_app_global_key(app_state, "invoked_default") == 0
+    assert get_app_global_key(app_state, "created") == 1
+    assert get_app_global_key(app_state, "updated") == 0
+    assert get_app_global_key(app_state, "opted_in") == 1
+    assert get_app_global_key(app_state, "closed") == 0
+    assert get_app_global_key(app_state, "cleared") == 0
+    assert get_app_global_key(app_state, "invoked_a") == 0
+    assert get_app_global_key(app_state, "invoked_ab") == 1
+    assert get_app_global_key(app_state, "invoked_default") == 0
 
-    assert apps.get_app_local_key(account_state, app_info.app_id, "opted_in") == 1
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_a") == 0
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_ab") == 1
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_default") == 0
+    assert get_app_local_key(account_state, app_info.app_id, "opted_in") == 1
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_a") == 0
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_ab") == 1
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_default") == 0
     # fmt: on
 
 
 def test_app_builder_default_invokation_is_called(
     algod_client: AlgodClient,
-    funded_account: transactions.AccountInfo,
+    funded_account: AccountMeta,
     num_wait: int,
     stateful_app: apps.AppBuilder,
 ):
@@ -593,27 +581,27 @@ def test_app_builder_default_invokation_is_called(
     account_state = algod_client.account_info(funded_account.address)
 
     # fmt: off
-    assert apps.get_app_global_key(app_state, "created") == 1
-    assert apps.get_app_global_key(app_state, "updated") == 0
-    assert apps.get_app_global_key(app_state, "opted_in") == 1
-    assert apps.get_app_global_key(app_state, "closed") == 0
-    assert apps.get_app_global_key(app_state, "cleared") == 0
-    assert apps.get_app_global_key(app_state, "invoked_a") == 0
-    assert apps.get_app_global_key(app_state, "invoked_ab") == 0
-    assert apps.get_app_global_key(app_state, "invoked_default") == 1
+    assert get_app_global_key(app_state, "created") == 1
+    assert get_app_global_key(app_state, "updated") == 0
+    assert get_app_global_key(app_state, "opted_in") == 1
+    assert get_app_global_key(app_state, "closed") == 0
+    assert get_app_global_key(app_state, "cleared") == 0
+    assert get_app_global_key(app_state, "invoked_a") == 0
+    assert get_app_global_key(app_state, "invoked_ab") == 0
+    assert get_app_global_key(app_state, "invoked_default") == 1
 
-    assert apps.get_app_local_key(account_state, app_info.app_id, "opted_in") == 1
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_a") == 0
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_ab") == 0
-    assert apps.get_app_local_key(account_state, app_info.app_id, "invoked_default") == 1
+    assert get_app_local_key(account_state, app_info.app_id, "opted_in") == 1
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_a") == 0
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_ab") == 0
+    assert get_app_local_key(account_state, app_info.app_id, "invoked_default") == 1
     # fmt: on
 
 
 class MultiStateOut(NamedTuple):
-    app_info_1: apps.AppInfo
-    account_1: transactions.AccountInfo
-    app_info_2: apps.AppInfo
-    account_2: transactions.AccountInfo
+    app_info_1: AppMeta
+    account_1: AccountMeta
+    app_info_2: AppMeta
+    account_2: AccountMeta
 
 
 @pytest.fixture
@@ -639,7 +627,7 @@ def multi_state(
     txn_info = transactions.get_confirmed_transaction(
         algod_client, txid, num_wait if num_wait else 1
     )
-    app_info_2 = apps.AppInfo.from_result(txn_info)
+    app_info_2 = AppMeta.from_result(txn_info)
 
     # opt-in an account to that app
     txn = ApplicationOptInTxn(
@@ -708,7 +696,7 @@ def multi_state(
     txn_info = transactions.get_confirmed_transaction(
         algod_client, txid, num_wait if num_wait else 1
     )
-    app_info_1 = apps.AppInfo.from_result(txn_info)
+    app_info_1 = AppMeta.from_result(txn_info)
 
     # opt-in the other account
     txn = ApplicationOptInTxn(

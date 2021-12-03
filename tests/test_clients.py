@@ -1,5 +1,4 @@
-import os
-from pathlib import Path
+import base64
 from unittest import mock
 
 from algosdk.kmd import KMDClient
@@ -30,6 +29,13 @@ def test_gets_wallet_handle(kmd_client: KMDClient):
         assert handle
 
 
+def test_extract_state_value_returns_value():
+    assert (
+        clients.extract_state_value({"type": 1, "bytes": "YQ==", "uint": None}) == b"a"
+    )
+    assert clients.extract_state_value({"type": 2, "bytes": b"", "uint": 1}) == 1
+
+
 def test_gets_wallet_handle_release():
     client = mock.Mock()
     client.init_wallet_handle.return_value = "handle"
@@ -41,3 +47,41 @@ def test_gets_wallet_handle_release():
             mock.call.release_wallet_handle("handle"),
         ]
     )
+
+
+def test_get_app_global_key_returns_value():
+    key = base64.b64encode("a".encode("utf8")).decode("ascii")
+    value = base64.b64encode("b".encode("utf8")).decode("ascii")
+    info = {
+        "params": {
+            "global-state": [
+                {"key": ""},
+                {},
+                {"key": key, "value": {"type": 1, "bytes": value}},
+            ]
+        }
+    }
+    assert clients.get_app_global_key(info, key="a") == b"b"
+    assert clients.get_app_global_key(info, key="") is None
+    assert clients.get_app_global_key(info, key="b") is None
+
+
+def test_get_app_local_key_returns_value():
+    key = base64.b64encode("a".encode("utf8")).decode("ascii")
+    value = base64.b64encode("c".encode("utf8")).decode("ascii")
+    info = {
+        "apps-local-state": [
+            {
+                "id": 1,
+                "key-value": [
+                    {"key": ""},
+                    {},
+                    {"key": key, "value": {"type": 1, "bytes": value}},
+                ],
+            }
+        ]
+    }
+    assert clients.get_app_local_key(info, 1, key="a") == b"c"
+    assert clients.get_app_local_key(info, 2, key="a") is None
+    assert clients.get_app_local_key(info, 1, key="") is None
+    assert clients.get_app_local_key(info, 1, key="b") is None

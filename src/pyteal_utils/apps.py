@@ -1,7 +1,6 @@
 import base64
-from typing import Dict, List, NamedTuple, Tuple, Type, Union
+from typing import Dict, List, NamedTuple, Type, Union
 
-import algosdk as ag
 import pyteal as tl
 from algosdk.future import transaction
 from algosdk.v2client.algod import AlgodClient
@@ -12,63 +11,6 @@ TValue = Union[tl.Int, tl.Bytes]
 
 ZERO = tl.Int(0)
 ONE = tl.Int(1)
-
-
-class AppInfo(NamedTuple):
-    """Information to find an app on the ledger."""
-
-    app_id: int
-    address: str
-
-    @staticmethod
-    def from_result(result: Dict) -> "AppInfo":
-        app_id = result.get("application-index", None)
-        if app_id is None:
-            return None
-        address = ag.encoding.encode_address(
-            ag.encoding.checksum(b"appID" + app_id.to_bytes(8, "big"))
-        )
-        return AppInfo(app_id=app_id, address=address)
-
-
-def extract_state_value(value: Dict):
-    """Extract the value from app info state value data."""
-    if value is None:
-        return None
-    if value.get("type", None) == 1:
-        value = value.get("bytes", None)
-        value = base64.b64decode(value)
-    elif value.get("type", None) == 2:
-        value = value.get("uint", None)
-    return value
-
-
-def get_app_global_key(app_state: Dict, key: str) -> Union[int, bytes]:
-    """
-    Return the value for the given `key` in `app_id`'s global data.
-    """
-    key = base64.b64encode(key.encode("utf8")).decode("ascii")
-    for key_state in app_state.get("params", {}).get("global-state", []):
-        if key_state.get("key", None) != key:
-            continue
-        return extract_state_value(key_state.get("value", None))
-    return None
-
-
-def get_app_local_key(account_state: Dict, app_id: int, key: str) -> Union[int, bytes]:
-    """
-    Return the value for the given `key` in `app_id`'s local data for account
-    `address`.
-    """
-    key = base64.b64encode(key.encode("utf8")).decode("ascii")
-    for app_state in account_state.get("apps-local-state", []):
-        if app_state.get("id", None) != app_id:
-            continue
-        for key_state in app_state.get("key-value", []):
-            if key_state.get("key", None) != key:
-                continue
-            return extract_state_value(key_state.get("value", None))
-    return None
 
 
 def compile_expr(client: AlgodClient, expr: tl.Expr) -> bytes:
