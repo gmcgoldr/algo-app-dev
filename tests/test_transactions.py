@@ -4,31 +4,29 @@ from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
 
 from pyteal_utils import transactions
+from pyteal_utils.testing import WAIT_ROUNDS
 from pyteal_utils.utils import AccountMeta
 
 
 def test_fund_from_genesis_funds_new_account(
-    algod_client: AlgodClient, kmd_client: KMDClient, num_wait: int
+    algod_client: AlgodClient, kmd_client: KMDClient
 ):
     account, txid = transactions.fund_from_genesis(
         algod_client, kmd_client, ag.util.algos_to_microalgos(1000)
     )
-    _ = transactions.get_confirmed_transaction(
-        algod_client, txid, num_wait if num_wait else 1
-    )
+    transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
     assert algod_client.account_info(account.address).get(
         "amount"
     ) == ag.util.algos_to_microalgos(1000)
 
 
 def test_get_confirmed_transaction_returns_info(
-    algod_client: AlgodClient, kmd_client: KMDClient, num_wait: int
+    algod_client: AlgodClient, kmd_client: KMDClient
 ):
     account1, txid = transactions.fund_from_genesis(
         algod_client, kmd_client, ag.util.algos_to_microalgos(1000)
     )
-    if num_wait:
-        _ = transactions.get_confirmed_transaction(algod_client, txid, num_wait)
+    transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
     account2 = AccountMeta(*ag.account.generate_account())
 
     params = algod_client.suggested_params()
@@ -42,9 +40,7 @@ def test_get_confirmed_transaction_returns_info(
     txn = txn.sign(account1.key)
     txid = algod_client.send_transaction(txn)
 
-    info = transactions.get_confirmed_transaction(
-        algod_client, txid, num_wait if num_wait else 1
-    )
+    info = transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
     assert info.get("confirmed-round")
     assert not info.get("pool-error")
     assert info.get("txn", {}).get("txn", {}).get(
