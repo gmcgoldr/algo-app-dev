@@ -2,7 +2,13 @@ import base64
 from typing import Dict, List, NamedTuple, Type, Union
 
 import pyteal as tl
-from algosdk.future import transaction
+from algosdk.future.transaction import (
+    ApplicationCreateTxn,
+    ApplicationUpdateTxn,
+    OnComplete,
+    StateSchema,
+    SuggestedParams,
+)
 from algosdk.v2client.algod import AlgodClient
 
 Key = Union[str, bytes]
@@ -13,22 +19,34 @@ ZERO = tl.Int(0)
 ONE = tl.Int(1)
 
 
-def compile_expr(client: AlgodClient, expr: tl.Expr) -> bytes:
+def compile_expr(expr: tl.Expr) -> str:
     """
-    Compile a teal expression code into the program bytes.
+    Compile a teal expression to teal source code:
 
     Args:
-        client: the client connected to a node with the developer API
         expr: the teal expression
 
     Returns:
-        the teal program bytes
+        the teal source code
     """
-    source = tl.compileTeal(
+    return tl.compileTeal(
         expr,
         mode=tl.Mode.Application,
         version=tl.MAX_TEAL_VERSION,
     )
+
+
+def compile_source(client: AlgodClient, source: str) -> bytes:
+    """
+    Compile teal source code into bytes.
+
+    Args:
+        client: the client connected to a node with the developer API
+        source: the teal source code
+
+    Returns:
+        the teal program bytes
+    """
     result = client.compile(source)
     result = result["result"]
     return base64.b64decode(result)
@@ -73,7 +91,7 @@ class State:
     def key_infos(self) -> List[KeyInfo]:
         return list(self._key_to_info.values())
 
-    def schema(self) -> transaction.StateSchema:
+    def schema(self) -> StateSchema:
         """Build the schema for this state."""
         num_uints = 0
         num_byte_slices = 0
@@ -84,9 +102,7 @@ class State:
             elif info.ttype is tl.Bytes:
                 num_byte_slices += 1
 
-        return transaction.StateSchema(
-            num_uints=num_uints, num_byte_slices=num_byte_slices
-        )
+        return StateSchema(num_uints=num_uints, num_byte_slices=num_byte_slices)
 
 
 class StateGlobalExternal(State):
@@ -440,9 +456,24 @@ class AppBuilder(NamedTuple):
 
         return tl.Cond(*branches)
 
+    def clear_exrp(self) -> tl.Expr:
+        return self.on_clear if self.on_clear is not None else tl.Return(ZERO)
+
+    def global_schema(self) -> StateSchema:
+        return (
+            self.global_state.schema()
+            if self.global_state is not None
+            else StateSchema()
+        )
+
+    def local_schema(self) -> StateSchema:
+        return (
+            self.local_state.schema() if self.local_state is not None else StateSchema()
+        )
+
     def create_txn(
-        self, client: AlgodClient, address: str, params: transaction.SuggestedParams
-    ) -> transaction.ApplicationCreateTxn:
+        self, client: AlgodClient, address: str, params: SuggestedParams
+    ) -> ApplicationCreateTxn:
         """
         Build the transaction to create the app.
 
@@ -452,41 +483,29 @@ class AppBuilder(NamedTuple):
             address: the address of the app creator sending the transaction
             params: the transaction parameters
         """
-        # ensure a valid clear program, interpret None as return zero
-        on_clear = self.on_clear if self.on_clear is not None else tl.Return(ZERO)
         # create empty schemas if none are provided
-        schema_global = (
-            self.global_state.schema()
-            if self.global_state is not None
-            else transaction.StateSchema()
-        )
-        schema_local = (
-            self.local_state.schema()
-            if self.local_state is not None
-            else transaction.StateSchema()
-        )
-        return transaction.ApplicationCreateTxn(
+        return ApplicationCreateTxn(
             # this will be the app creator
             sender=address,
             sp=params,
             # no state change requested in this transaciton beyond app creation
-            on_complete=transaction.OnComplete.NoOpOC.real,
+            on_complete=OnComplete.NoOpOC.real,
             # the program to handle app state changes
-            approval_program=compile_expr(client, self.approval_expr()),
+            approval_program=compile_source(client, compile_expr(self.approval_expr())),
             # the program to run when an account forces an opt-out
-            clear_program=compile_expr(client, on_clear),
+            clear_program=compile_source(client, compile_expr(self.clear_exrp())),
             # the amount of storage used by the app
-            global_schema=schema_global,
-            local_schema=schema_local,
+            global_schema=self.global_schema(),
+            local_schema=self.local_schema(),
         )
 
     def update_txn(
         self,
         client: AlgodClient,
         address: str,
-        params: transaction.SuggestedParams,
+        params: SuggestedParams,
         app_id: int,
-    ) -> transaction.ApplicationUpdateTxn:
+    ) -> ApplicationUpdateTxn:
         """
         Build the transaction to update an app with this data.
 
@@ -501,11 +520,10 @@ class AppBuilder(NamedTuple):
             app_id: the id of the exisiting application to update
         """
         # ensure a valid clear program, interpret None as return zero
-        on_clear = self.on_clear if self.on_clear is not None else tl.Return(ZERO)
-        return transaction.ApplicationUpdateTxn(
+        return ApplicationUpdateTxn(
             sender=address,
             sp=params,
             index=app_id,
-            approval_program=compile_expr(client, self.approval_expr()),
-            clear_program=compile_expr(client, on_clear),
+            approval_program=compile_source(client, compile_expr(self.approval_expr())),
+            clear_program=compile_source(client, compile_expr(self.clear_exrp())),
         )
