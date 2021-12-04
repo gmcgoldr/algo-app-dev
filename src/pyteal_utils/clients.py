@@ -10,6 +10,8 @@ from typing import Dict, Union
 from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
 
+from . import utils
+
 
 def build_algod_local_client(data_dir: Path) -> AlgodClient:
     """
@@ -79,18 +81,6 @@ def get_wallet_handle(client: KMDClient, wallet_id: str, password: str) -> str:
     client.release_wallet_handle(handle)
 
 
-def extract_state_value(value: Dict) -> Union[int, bytes]:
-    """Extract the value from app info state value data."""
-    if value is None:
-        return None
-    if value.get("type", None) == 1:
-        value = value.get("bytes", None)
-        value = base64.b64decode(value)
-    elif value.get("type", None) == 2:
-        value = value.get("uint", None)
-    return value
-
-
 def get_app_global_key(app_state: Dict, key: str) -> Union[int, bytes]:
     """
     Return the value for the given `key` in `app_id`'s global data.
@@ -99,7 +89,7 @@ def get_app_global_key(app_state: Dict, key: str) -> Union[int, bytes]:
     for key_state in app_state.get("params", {}).get("global-state", []):
         if key_state.get("key", None) != key:
             continue
-        return extract_state_value(key_state.get("value", None))
+        return utils.from_value(key_state.get("value", None))
     return None
 
 
@@ -115,5 +105,5 @@ def get_app_local_key(account_state: Dict, app_id: int, key: str) -> Union[int, 
         for key_state in app_state.get("key-value", []):
             if key_state.get("key", None) != key:
                 continue
-            return extract_state_value(key_state.get("value", None))
+            return utils.from_value(key_state.get("value", None))
     return None

@@ -29,13 +29,6 @@ def test_gets_wallet_handle(kmd_client: KMDClient):
         assert handle
 
 
-def test_extract_state_value_returns_value():
-    assert (
-        clients.extract_state_value({"type": 1, "bytes": "YQ==", "uint": None}) == b"a"
-    )
-    assert clients.extract_state_value({"type": 2, "bytes": b"", "uint": 1}) == 1
-
-
 def test_gets_wallet_handle_release():
     client = mock.Mock()
     client.init_wallet_handle.return_value = "handle"
