@@ -56,7 +56,8 @@ def main_args():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("network", choices=("private", "private_dev"))
-    parser.add_argument("--path", type=Path, default=Path.home() / "nets")
+    # default data path is be the `nets` directory in the algorand home
+    parser.add_argument("--path", type=Path, default=Path("/var/lib/algorand/nets"))
     parser.add_argument("-f", "--force", action="store_true")
     args = parser.parse_args()
 
