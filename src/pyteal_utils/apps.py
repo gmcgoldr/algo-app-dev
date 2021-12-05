@@ -457,7 +457,7 @@ class AppBuilder(NamedTuple):
         return tl.Cond(*branches)
 
     def clear_exrp(self) -> tl.Expr:
-        return self.on_clear if self.on_clear is not None else tl.Return(ZERO)
+        return self.on_clear if self.on_clear is not None else tl.Return(ONE)
 
     def global_schema(self) -> StateSchema:
         return (

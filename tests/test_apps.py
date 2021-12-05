@@ -1,9 +1,10 @@
-from typing import NamedTuple
+from typing import List, NamedTuple
 
 import algosdk as ag
 import pyteal as tl
 import pytest
 from algosdk.future.transaction import (
+    ApplicationCallTxn,
     ApplicationClearStateTxn,
     ApplicationCloseOutTxn,
     ApplicationDeleteTxn,
@@ -13,7 +14,9 @@ from algosdk.future.transaction import (
 from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
 
-from pyteal_utils import apps, transactions
+from pyteal_utils import apps
+from pyteal_utils import dryruns as dr
+from pyteal_utils import transactions
 from pyteal_utils.clients import get_app_global_key, get_app_local_key
 from pyteal_utils.testing import WAIT_ROUNDS, fund_account
 from pyteal_utils.utils import AccountMeta, AppMeta
@@ -54,103 +57,81 @@ def test_app_builder_default_app_creates(
     algod_client: AlgodClient, funded_account: AccountMeta
 ):
     app = apps.AppBuilder()
-
     txn = app.create_txn(
         algod_client, funded_account.address, algod_client.suggested_params()
     )
-    txid = algod_client.send_transaction(txn.sign(funded_account.key))
-    txn_info = transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-    app_info = AppMeta.from_result(txn_info)
+    result = algod_client.dryrun(
+        dr.builder_run(stxn=txn.sign(funded_account.key), app_builder=app)
+    )
+    messages = dr.get_messages(result)
+    assert messages == ["ApprovalProgram", "PASS"]
 
-    assert app_info.app_id
-    assert app_info.address
 
-
-def test_app_builder_default_app_opts_in_and_clears(
+def test_app_builder_default_app_opts_in(
     algod_client: AlgodClient, funded_account: AccountMeta
 ):
     app = apps.AppBuilder()
-
-    txn = app.create_txn(
-        algod_client, funded_account.address, algod_client.suggested_params()
-    )
-    txid = algod_client.send_transaction(txn.sign(funded_account.key))
-    txn_info = transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-    app_info = AppMeta.from_result(txn_info)
-
     txn = ApplicationOptInTxn(
-        funded_account.address, algod_client.suggested_params(), app_info.app_id
+        funded_account.address, algod_client.suggested_params(), 2 ** 64 - 1
     )
-    txid = algod_client.send_transaction(txn.sign(funded_account.key))
-    transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-
-    account_info = algod_client.account_info(funded_account.address)
-    app_ids = [a.get("id", None) for a in account_info.get("apps-local-state", [])]
-    assert app_info.app_id in app_ids
-
-    txn = ApplicationClearStateTxn(
-        funded_account.address, algod_client.suggested_params(), app_info.app_id
+    result = algod_client.dryrun(
+        dr.builder_run(stxn=txn.sign(funded_account.key), app_builder=app)
     )
-    txid = algod_client.send_transaction(txn.sign(funded_account.key))
-    transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-
-    account_info = algod_client.account_info(funded_account.address)
-    app_ids = [a.get("id", None) for a in account_info.get("apps-local-state", [])]
-    assert app_info.app_id not in app_ids
+    messages = dr.get_messages(result)
+    assert messages == ["ApprovalProgram", "PASS"]
 
 
-def test_app_builder_default_app_rejects_other(
+def test_app_builder_default_app_clears(
     algod_client: AlgodClient, funded_account: AccountMeta
 ):
     app = apps.AppBuilder()
-
-    txn = app.create_txn(
-        algod_client, funded_account.address, algod_client.suggested_params()
+    app_idx = 2 ** 64 - 1
+    txn = ApplicationClearStateTxn(
+        funded_account.address, algod_client.suggested_params(), app_idx
     )
-    txid = algod_client.send_transaction(txn.sign(funded_account.key))
-    txn_info = transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-    app_info = AppMeta.from_result(txn_info)
-
-    txn = ApplicationDeleteTxn(
-        funded_account.address, algod_client.suggested_params(), app_info.app_id
+    result = algod_client.dryrun(
+        dr.builder_run(
+            stxn=txn.sign(funded_account.key),
+            app_builder=app,
+            sender_state=dr.build_account(
+                funded_account.address, [dr.build_application(app_idx)]
+            ),
+        )
     )
-    with pytest.raises(ag.error.AlgodHTTPError, match=MSG_REJECT):
-        algod_client.send_transaction(txn.sign(funded_account.key))
+    messages = dr.get_messages(result)
+    assert messages == ["ClearStateProgram", "PASS"]
 
-    txn = app.update_txn(
-        algod_client,
-        funded_account.address,
-        algod_client.suggested_params(),
-        app_info.app_id,
-    )
-    with pytest.raises(ag.error.AlgodHTTPError, match=MSG_REJECT):
-        algod_client.send_transaction(txn.sign(funded_account.key))
 
-    txn = ApplicationCloseOutTxn(
-        funded_account.address, algod_client.suggested_params(), app_info.app_id
-    )
-    with pytest.raises(ag.error.AlgodHTTPError, match=MSG_REJECT):
-        algod_client.send_transaction(txn.sign(funded_account.key))
-
-    txn = ApplicationNoOpTxn(
-        funded_account.address, algod_client.suggested_params(), app_info.app_id
-    )
-    with pytest.raises(ag.error.AlgodHTTPError, match=MSG_REJECT):
-        algod_client.send_transaction(txn.sign(funded_account.key))
-
-    txn = ApplicationNoOpTxn(
-        funded_account.address,
-        algod_client.suggested_params(),
-        app_info.app_id,
-        ["invoke"],
-    )
-    with pytest.raises(ag.error.AlgodHTTPError, match=MSG_REJECT):
-        algod_client.send_transaction(txn.sign(funded_account.key))
+def test_app_builder_default_disables_others(
+    algod_client: AlgodClient, funded_account: AccountMeta
+):
+    app = apps.AppBuilder()
+    app_idx = 2 ** 64 - 1
+    params = algod_client.suggested_params()
+    txns: List[ApplicationCallTxn] = [
+        ApplicationCloseOutTxn(funded_account.address, params, app_idx),
+        ApplicationNoOpTxn(funded_account.address, params, app_idx),
+        ApplicationNoOpTxn(funded_account.address, params, app_idx, ["a"]),
+        app.update_txn(algod_client, funded_account.address, params, app_idx),
+    ]
+    for txn in txns:
+        result = algod_client.dryrun(
+            dr.builder_run(
+                stxn=txn.sign(funded_account.key),
+                app_builder=app,
+                sender_state=dr.build_account(
+                    funded_account.address, [dr.build_application(app_idx)]
+                ),
+            )
+        )
+        messages = dr.get_messages(result)
+        assert messages == ["ApprovalProgram", "REJECT"]
 
 
 def test_app_builder_default_app_constructs_defaults(
     algod_client: AlgodClient, funded_account: AccountMeta
 ):
+    app_idx = 2 ** 64 - 1
     app = apps.AppBuilder(
         global_state=apps.StateGlobal([apps.State.KeyInfo("a", tl.Int, apps.ONE)]),
         local_state=apps.StateLocal(
@@ -161,21 +142,24 @@ def test_app_builder_default_app_constructs_defaults(
     txn = app.create_txn(
         algod_client, funded_account.address, algod_client.suggested_params()
     )
-    txid = algod_client.send_transaction(txn.sign(funded_account.key))
-    txn_info = transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-    app_info = AppMeta.from_result(txn_info)
-
-    app_state = algod_client.application_info(app_info.app_id)
-    assert get_app_global_key(app_state, "a") == 1
+    result = algod_client.dryrun(
+        dr.builder_run(stxn=txn.sign(funded_account.key), app_builder=app)
+    )
+    messages = dr.get_messages(result)
+    assert messages == ["ApprovalProgram", "PASS"]
+    assert dr.get_global_deltas(result) == [dr.KeyDelta(b"a", 1)]
 
     txn = ApplicationOptInTxn(
-        funded_account.address, algod_client.suggested_params(), app_info.app_id
+        funded_account.address, algod_client.suggested_params(), app_idx
     )
-    txid = algod_client.send_transaction(txn.sign(funded_account.key))
-    transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-
-    account_state = algod_client.account_info(funded_account.address)
-    assert get_app_local_key(account_state, app_info.app_id, "b") == b"abc"
+    result = algod_client.dryrun(
+        dr.builder_run(stxn=txn.sign(funded_account.key), app_builder=app)
+    )
+    messages = dr.get_messages(result)
+    assert messages == ["ApprovalProgram", "PASS"]
+    assert dr.get_local_deltas(result) == {
+        funded_account.address: [dr.KeyDelta(b"b", b"abc")]
+    }
 
 
 @pytest.fixture
@@ -596,7 +580,7 @@ def multi_state(
         tl.Addr(account_2.address),
     )
 
-    # setup an app with default and non-default global and local state
+    # setup an app withdefault and non-default global and local state
     state_g1 = apps.StateGlobal(
         [
             apps.State.KeyInfo("ga", tl.Int, apps.ONE),
