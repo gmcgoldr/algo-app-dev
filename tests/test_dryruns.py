@@ -1,14 +1,29 @@
-from pprint import pprint
-
 import algosdk as ag
 import pyteal as tl
 from algosdk.future.transaction import ApplicationNoOpTxn
 from algosdk.v2client.algod import AlgodClient
-from algosdk.v2client.models import application
-from pyteal.ast import global_test
 
 from pyteal_utils import apps, dryruns
 from pyteal_utils.utils import AccountMeta, to_key_value
+
+
+def test_txn_source_run_executes(
+    algod_client: AlgodClient, funded_account: AccountMeta
+):
+    app_idx = 2 ** 64 - 1
+    txn = ApplicationNoOpTxn(
+        funded_account.address, algod_client.suggested_params(), app_idx
+    )
+    result = algod_client.dryrun(
+        dryruns.source_run(
+            stxn=txn.sign(funded_account.key),
+            source=apps.compile_expr(tl.Return(tl.Int(1))),
+        )
+    )
+    dryruns.check_err(result)
+    assert dryruns.get_trace(result)[-1] == dryruns.TraceItem(
+        source="return", stack=[1]
+    )
 
 
 def test_txn_builder_run_creates_app(
@@ -26,23 +41,6 @@ def test_txn_builder_run_creates_app(
     )
     dryruns.check_err(result)
     assert dryruns.get_messages(result)[:2] == ["ApprovalProgram", "PASS"]
-
-
-def test_dryrun_gets_trace(algod_client: AlgodClient, funded_account: AccountMeta):
-    app_builder = apps.AppBuilder()
-    txn = app_builder.create_txn(
-        algod_client, funded_account.address, algod_client.suggested_params()
-    )
-    result = algod_client.dryrun(
-        dryruns.builder_run(
-            stxn=txn.sign(funded_account.key),
-            app_builder=app_builder,
-        )
-    )
-    dryruns.check_err(result)
-    assert dryruns.get_trace(result)[-1] == dryruns.TraceItem(
-        source="return", stack=[1]
-    )
 
 
 def test_txn_buider_run_passes_global_state(
@@ -143,7 +141,6 @@ def test_dryrun_gets_deltas(algod_client: AlgodClient, funded_account: AccountMe
         )
     )
     dryruns.check_err(result)
-    pprint(result)
 
     global_deltas = dryruns.get_global_deltas(result)
     assert set(global_deltas) == {

@@ -19,7 +19,7 @@ from algosdk.v2client.models.dryrun_source import DryrunSource
 from algosdk.v2client.models.teal_key_value import TealKeyValue
 
 from pyteal_utils import apps
-from pyteal_utils.apps import AppBuilder, Key, compile_expr
+from pyteal_utils.apps import AppBuilder, compile_expr
 from pyteal_utils.utils import PyTealUtilsError, from_value
 
 
@@ -141,6 +141,73 @@ def build_account(
     )
 
 
+def source_run(
+    stxn: SignedTransaction,
+    source: str,
+    global_state_values: List[TealKeyValue] = [],
+    sender_state: Account = None,
+) -> DryrunRequest:
+    """
+    Build a `DryrunRequest` from a transaction and some TEAL source.
+
+    This is the simplest dryrun harness, allowing for quickly debugging a
+    standalone TEAL program.
+
+    NOTE: if the transaciton application index is not specified, it defaults
+    to the largest value `2**64 - 1`. So this value should be used to refer to
+    the app being built. If the `sender_state` includes an `AppState` with no
+    `app_idx` (zero or None), then it will be set to the current app index.
+
+    Args:
+        stxn: the signed transaction used to call the app
+        source: the teal source code to run
+        global_state_values: the app's global state
+        sender_state: the sender's state
+
+    Returns:
+        the dryrun request object
+    """
+    txn: ApplicationCallTxn = stxn.transaction
+    try:
+        OnComplete(txn.on_complete)
+    except (AttributeError, ValueError):
+        raise PyTealUtilsError("transaction must be an application call")
+
+    app_idx = txn.index
+    if app_idx == 0:
+        app_idx = 2 ** 64 - 1
+
+    app = Application(
+        id=app_idx,
+        params=ApplicationParams(
+            creator=txn.sender,
+            # use a generic state schema allowing for the maximal storage
+            local_state_schema=ApplicationStateSchema(64, 64),
+            global_state_schema=ApplicationStateSchema(64, 64),
+            global_state=global_state_values,
+        ),
+    )
+
+    account = (
+        build_account(address=txn.sender) if sender_state is None else sender_state
+    )
+
+    source = DryrunSource(
+        # run as the approval program as this is a standalone run so the clear
+        # program semantics aren't too useful
+        field_name="approv",
+        source=source,
+        app_index=app_idx,
+    )
+
+    return DryrunRequest(
+        txns=[stxn],
+        apps=[app],
+        accounts=[account],
+        sources=[source],
+    )
+
+
 def builder_run(
     stxn: SignedTransaction,
     app_builder: AppBuilder,
@@ -154,10 +221,7 @@ def builder_run(
     schemas. If the call needs global state, it can be passed in the
     `global_state_values` list.
 
-    NOTE: if the transaciton application index is not specified, it defaults
-    to the largest value `2**64 - 1`. So this value should be used to refer to
-    the app being built. If the `sender_state` includes an `AppState` with no
-    `app_idx` (zero or None), then it will be set to the current app index.
+    See: `expression_run`.
 
     Args:
         stxn: the signed transaction used to call the app
