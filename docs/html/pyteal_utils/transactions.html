@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>pyteal_utils.transactions API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>pyteal_utils.transactions</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">from typing import Dict, List, Tuple
+
+import algosdk as ag
+from algosdk.future import transaction
+from algosdk.future.transaction import PaymentTxn
+from algosdk.kmd import KMDClient
+from algosdk.v2client.algod import AlgodClient
+
+from .clients import get_wallet_handle, get_wallet_id
+from .utils import AccountMeta
+
+
+def get_confirmed_transactions(
+    client: AlgodClient, transaction_ids: List[int], timeout_blocks: int
+) -&gt; Dict:
+    &#34;&#34;&#34;
+    Wait for the network to confirm some transactions and return their info.
+
+    Args:
+        client: the client
+        transaction_ids: list of transactions for which to retreive info
+        timeout_blocks: wait for this many blocks to confirm the transactions
+
+    Returns:
+        list of transaction info for confirmed transactions
+    &#34;&#34;&#34;
+    start_round = client.status()[&#34;last-round&#34;] + 1
+    current_round = start_round
+
+    # the transaction ids that are not yet confirmed
+    waiting_ids = set(transaction_ids)
+    # list of transaction info for confirmed transactions
+    infos = []
+
+    while current_round &lt; start_round + timeout_blocks:
+        for transaction_id in list(waiting_ids):
+            # NOTE: documentation suggests that transactions are &#34;remembered&#34;
+            # by a node for some time after confirmation, but doesn&#39;t specify
+            # how long
+            pending_txn = client.pending_transaction_info(transaction_id)
+            if pending_txn[&#34;pool-error&#34;]:
+                waiting_ids.remove(transaction_id)
+            elif pending_txn.get(&#34;confirmed-round&#34;, 0) &gt; 0:
+                infos.append(pending_txn)
+                waiting_ids.remove(transaction_id)
+        if not waiting_ids:
+            break
+        # wait until the end of this block
+        client.status_after_block(current_round)
+        current_round += 1
+
+    return infos
+
+
+def get_confirmed_transaction(
+    client: AlgodClient, transaction_id: int, timeout_blocks: int
+) -&gt; Dict:
+    &#34;&#34;&#34;
+    See `get_confirmed_transactions`, but for a single transaction id.
+    &#34;&#34;&#34;
+    confirmed = get_confirmed_transactions(client, [transaction_id], timeout_blocks)
+    if confirmed:
+        return confirmed[0]
+    else:
+        return None
+
+
+def fund_from_genesis(
+    algod_client: AlgodClient, kmd_client: KMDClient, amount: int
+) -&gt; Tuple[AccountMeta, str]:
+    &#34;&#34;&#34;
+    Create a new account and fund it from the account that received the gensis
+    funds.
+
+    Expects an unencrypted wallet &#34;unencrypted-default-wallet&#34; whose first key
+    is the address of the account with the genesis funds.
+
+    Args:
+        algod_client: client to send node commands to
+        kmd_client: client to use in signing the transaction
+        amount: the quantity of microAlgos to fund
+
+    Returns:
+        the funded account info, and funding transaction id
+    &#34;&#34;&#34;
+    wallet_id = get_wallet_id(kmd_client, &#34;unencrypted-default-wallet&#34;)
+
+    # Get the address of the source account with all the genesis tokens
+    with get_wallet_handle(kmd_client, wallet_id, &#34;&#34;) as handle:
+        keys = kmd_client.list_keys(handle)
+        if not keys:
+            raise RuntimeError(&#34;funded account not found in wallet&#34;)
+        sender_address = keys[0]
+
+    account = AccountMeta(*ag.account.generate_account())
+
+    # Transfer algos to the escrow account
+    params = algod_client.suggested_params()
+    params.fee = 0  # use the minimum network fee
+    txn = PaymentTxn(
+        sender=sender_address, sp=params, receiver=account.address, amt=amount
+    )
+    # Sign with the sender account keys, managed by its wallet
+    with get_wallet_handle(kmd_client, wallet_id, &#34;&#34;) as handle:
+        txn = kmd_client.sign_transaction(handle, &#34;&#34;, txn)
+    txid = algod_client.send_transaction(txn)
+
+    return account, txid
+
+
+def group_txns(*txns: transaction.Transaction) -&gt; List[transaction.Transaction]:
+    &#34;&#34;&#34;
+    Group multiple transactions.
+
+    Args:
+        txns: the transactions to group
+
+    Returns:
+        list of transactions, with the `group` memmber set
+    &#34;&#34;&#34;
+    gid = transaction.calculate_group_id(txns)
+    for txn in txns:
+        txn.group = gid
+    return txns
+
+
+def pad_lease_bytes(lease: bytes) -&gt; bytes:
+    &#34;&#34;&#34;
+    Given a string of bytes to use as a lease, right pad with 0s to get the
+    correct number of bytes.
+    &#34;&#34;&#34;
+    lease = lease[: ag.constants.LEASE_LENGTH]
+    lease = lease + (b&#34;\x00&#34; * max(0, ag.constants.LEASE_LENGTH - len(lease)))
+    return lease</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="pyteal_utils.transactions.fund_from_genesis"><code class="name flex">
+<span>def <span class="ident">fund_from_genesis</span></span>(<span>algod_client: algosdk.v2client.algod.AlgodClient, kmd_client: algosdk.kmd.KMDClient, amount: int) ‑> Tuple[<a title="pyteal_utils.utils.AccountMeta" href="utils.html#pyteal_utils.utils.AccountMeta">AccountMeta</a>, str]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Create a new account and fund it from the account that received the gensis
+funds.</p>
+<p>Expects an unencrypted wallet "unencrypted-default-wallet" whose first key
+is the address of the account with the genesis funds.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>algod_client</code></strong></dt>
+<dd>client to send node commands to</dd>
+<dt><strong><code>kmd_client</code></strong></dt>
+<dd>client to use in signing the transaction</dd>
+<dt><strong><code>amount</code></strong></dt>
+<dd>the quantity of microAlgos to fund</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>the funded account info, and funding transaction id</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def fund_from_genesis(
+    algod_client: AlgodClient, kmd_client: KMDClient, amount: int
+) -&gt; Tuple[AccountMeta, str]:
+    &#34;&#34;&#34;
+    Create a new account and fund it from the account that received the gensis
+    funds.
+
+    Expects an unencrypted wallet &#34;unencrypted-default-wallet&#34; whose first key
+    is the address of the account with the genesis funds.
+
+    Args:
+        algod_client: client to send node commands to
+        kmd_client: client to use in signing the transaction
+        amount: the quantity of microAlgos to fund
+
+    Returns:
+        the funded account info, and funding transaction id
+    &#34;&#34;&#34;
+    wallet_id = get_wallet_id(kmd_client, &#34;unencrypted-default-wallet&#34;)
+
+    # Get the address of the source account with all the genesis tokens
+    with get_wallet_handle(kmd_client, wallet_id, &#34;&#34;) as handle:
+        keys = kmd_client.list_keys(handle)
+        if not keys:
+            raise RuntimeError(&#34;funded account not found in wallet&#34;)
+        sender_address = keys[0]
+
+    account = AccountMeta(*ag.account.generate_account())
+
+    # Transfer algos to the escrow account
+    params = algod_client.suggested_params()
+    params.fee = 0  # use the minimum network fee
+    txn = PaymentTxn(
+        sender=sender_address, sp=params, receiver=account.address, amt=amount
+    )
+    # Sign with the sender account keys, managed by its wallet
+    with get_wallet_handle(kmd_client, wallet_id, &#34;&#34;) as handle:
+        txn = kmd_client.sign_transaction(handle, &#34;&#34;, txn)
+    txid = algod_client.send_transaction(txn)
+
+    return account, txid</code></pre>
+</details>
+</dd>
+<dt id="pyteal_utils.transactions.get_confirmed_transaction"><code class="name flex">
+<span>def <span class="ident">get_confirmed_transaction</span></span>(<span>client: algosdk.v2client.algod.AlgodClient, transaction_id: int, timeout_blocks: int) ‑> Dict[~KT, ~VT]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>See <code><a title="pyteal_utils.transactions.get_confirmed_transactions" href="#pyteal_utils.transactions.get_confirmed_transactions">get_confirmed_transactions()</a></code>, but for a single transaction id.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_confirmed_transaction(
+    client: AlgodClient, transaction_id: int, timeout_blocks: int
+) -&gt; Dict:
+    &#34;&#34;&#34;
+    See `get_confirmed_transactions`, but for a single transaction id.
+    &#34;&#34;&#34;
+    confirmed = get_confirmed_transactions(client, [transaction_id], timeout_blocks)
+    if confirmed:
+        return confirmed[0]
+    else:
+        return None</code></pre>
+</details>
+</dd>
+<dt id="pyteal_utils.transactions.get_confirmed_transactions"><code class="name flex">
+<span>def <span class="ident">get_confirmed_transactions</span></span>(<span>client: algosdk.v2client.algod.AlgodClient, transaction_ids: List[int], timeout_blocks: int) ‑> Dict[~KT, ~VT]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Wait for the network to confirm some transactions and return their info.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>client</code></strong></dt>
+<dd>the client</dd>
+<dt><strong><code>transaction_ids</code></strong></dt>
+<dd>list of transactions for which to retreive info</dd>
+<dt><strong><code>timeout_blocks</code></strong></dt>
+<dd>wait for this many blocks to confirm the transactions</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>list of transaction info for confirmed transactions</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_confirmed_transactions(
+    client: AlgodClient, transaction_ids: List[int], timeout_blocks: int
+) -&gt; Dict:
+    &#34;&#34;&#34;
+    Wait for the network to confirm some transactions and return their info.
+
+    Args:
+        client: the client
+        transaction_ids: list of transactions for which to retreive info
+        timeout_blocks: wait for this many blocks to confirm the transactions
+
+    Returns:
+        list of transaction info for confirmed transactions
+    &#34;&#34;&#34;
+    start_round = client.status()[&#34;last-round&#34;] + 1
+    current_round = start_round
+
+    # the transaction ids that are not yet confirmed
+    waiting_ids = set(transaction_ids)
+    # list of transaction info for confirmed transactions
+    infos = []
+
+    while current_round &lt; start_round + timeout_blocks:
+        for transaction_id in list(waiting_ids):
+            # NOTE: documentation suggests that transactions are &#34;remembered&#34;
+            # by a node for some time after confirmation, but doesn&#39;t specify
+            # how long
+            pending_txn = client.pending_transaction_info(transaction_id)
+            if pending_txn[&#34;pool-error&#34;]:
+                waiting_ids.remove(transaction_id)
+            elif pending_txn.get(&#34;confirmed-round&#34;, 0) &gt; 0:
+                infos.append(pending_txn)
+                waiting_ids.remove(transaction_id)
+        if not waiting_ids:
+            break
+        # wait until the end of this block
+        client.status_after_block(current_round)
+        current_round += 1
+
+    return infos</code></pre>
+</details>
+</dd>
+<dt id="pyteal_utils.transactions.group_txns"><code class="name flex">
+<span>def <span class="ident">group_txns</span></span>(<span>*txns: algosdk.future.transaction.Transaction) ‑> List[algosdk.future.transaction.Transaction]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Group multiple transactions.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>txns</code></strong></dt>
+<dd>the transactions to group</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>list of transactions, with the <code>group</code> memmber set</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def group_txns(*txns: transaction.Transaction) -&gt; List[transaction.Transaction]:
+    &#34;&#34;&#34;
+    Group multiple transactions.
+
+    Args:
+        txns: the transactions to group
+
+    Returns:
+        list of transactions, with the `group` memmber set
+    &#34;&#34;&#34;
+    gid = transaction.calculate_group_id(txns)
+    for txn in txns:
+        txn.group = gid
+    return txns</code></pre>
+</details>
+</dd>
+<dt id="pyteal_utils.transactions.pad_lease_bytes"><code class="name flex">
+<span>def <span class="ident">pad_lease_bytes</span></span>(<span>lease: bytes) ‑> bytes</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Given a string of bytes to use as a lease, right pad with 0s to get the
+correct number of bytes.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pad_lease_bytes(lease: bytes) -&gt; bytes:
+    &#34;&#34;&#34;
+    Given a string of bytes to use as a lease, right pad with 0s to get the
+    correct number of bytes.
+    &#34;&#34;&#34;
+    lease = lease[: ag.constants.LEASE_LENGTH]
+    lease = lease + (b&#34;\x00&#34; * max(0, ag.constants.LEASE_LENGTH - len(lease)))
+    return lease</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="pyteal_utils" href="index.html">pyteal_utils</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="pyteal_utils.transactions.fund_from_genesis" href="#pyteal_utils.transactions.fund_from_genesis">fund_from_genesis</a></code></li>
+<li><code><a title="pyteal_utils.transactions.get_confirmed_transaction" href="#pyteal_utils.transactions.get_confirmed_transaction">get_confirmed_transaction</a></code></li>
+<li><code><a title="pyteal_utils.transactions.get_confirmed_transactions" href="#pyteal_utils.transactions.get_confirmed_transactions">get_confirmed_transactions</a></code></li>
+<li><code><a title="pyteal_utils.transactions.group_txns" href="#pyteal_utils.transactions.group_txns">group_txns</a></code></li>
+<li><code><a title="pyteal_utils.transactions.pad_lease_bytes" href="#pyteal_utils.transactions.pad_lease_bytes">pad_lease_bytes</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>pyteal_utils.clients API documentation</title>
+<meta name="description" content="Utilities to connect to and interact with `algod` and `kmd` clients." />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>pyteal_utils.clients</code></h1>
+</header>
+<section id="section-intro">
+<p>Utilities to connect to and interact with <code>algod</code> and <code>kmd</code> clients.</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;
+Utilities to connect to and interact with `algod` and `kmd` clients.
+&#34;&#34;&#34;
+
+import base64
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Dict, Union
+
+from algosdk.kmd import KMDClient
+from algosdk.v2client.algod import AlgodClient
+
+from . import utils
+
+
+def build_algod_local_client(data_dir: Path) -&gt; AlgodClient:
+    &#34;&#34;&#34;
+    Build the `algod` client to interface with the local daemon whose
+    congifugartion network configruation is at `data_dir`.
+
+    Args:
+        data_dir: the path with the network data
+
+    Returns:
+        the client connected to the local algod daemon
+    &#34;&#34;&#34;
+    algod_address = (data_dir / &#34;algod.net&#34;).read_text().strip()
+    algod_token = (data_dir / &#34;algod.token&#34;).read_text().strip()
+    algod_client = AlgodClient(
+        algod_address=f&#34;http://{algod_address}&#34;, algod_token=algod_token
+    )
+    return algod_client
+
+
+def build_kmd_local_client(data_dir: Path, version: str = &#34;0.5&#34;) -&gt; KMDClient:
+    &#34;&#34;&#34;
+    Build the `kmd` client to interface with the local daemon whose
+    congifugartion network configruation is at `data_dir`.
+
+    Args:
+        data_dir: the path with the network data
+
+    Returns:
+        the client connected to the local kmd daemon
+    &#34;&#34;&#34;
+    kmd_address = (data_dir / f&#34;kmd-v{version}&#34; / &#34;kmd.net&#34;).read_text().strip()
+    kmd_token = (data_dir / f&#34;kmd-v{version}&#34; / &#34;kmd.token&#34;).read_text().strip()
+    kmd_client = KMDClient(kmd_address=f&#34;http://{kmd_address}&#34;, kmd_token=kmd_token)
+    return kmd_client
+
+
+def get_wallet_id(kmd_client: KMDClient, name: str) -&gt; str:
+    &#34;&#34;&#34;
+    Get the ID of the wallet of a given name from the `kmd`.
+
+    Args:
+        kmd_client: the `kmd` client to query
+        name: the wallet name
+
+    Returns:
+        the wallet ID in `kmd` or `None` if it is not found
+    &#34;&#34;&#34;
+    wallets = {w[&#34;name&#34;]: w for w in kmd_client.list_wallets()}
+    wallet_id = wallets.get(name, {}).get(&#34;id&#34;, None)
+    return wallet_id
+
+
+@contextmanager
+def get_wallet_handle(client: KMDClient, wallet_id: str, password: str) -&gt; str:
+    &#34;&#34;&#34;
+    Request `kmd` initialize a wallet handle, and release it when the context
+    is closed.
+
+    Args:
+        client: the client
+        wallet_id: the wallet id
+        password: the wallet password
+    &#34;&#34;&#34;
+    handle = client.init_wallet_handle(wallet_id, password)
+    yield handle
+    client.release_wallet_handle(handle)
+
+
+def get_app_global_key(app_state: Dict, key: str) -&gt; Union[int, bytes]:
+    &#34;&#34;&#34;
+    Return the value for the given `key` in `app_id`&#39;s global data.
+    &#34;&#34;&#34;
+    key = base64.b64encode(key.encode(&#34;utf8&#34;)).decode(&#34;ascii&#34;)
+    for key_state in app_state.get(&#34;params&#34;, {}).get(&#34;global-state&#34;, []):
+        if key_state.get(&#34;key&#34;, None) != key:
+            continue
+        return utils.from_value(key_state.get(&#34;value&#34;, None))
+    return None
+
+
+def get_app_local_key(account_state: Dict, app_id: int, key: str) -&gt; Union[int, bytes]:
+    &#34;&#34;&#34;
+    Return the value for the given `key` in `app_id`&#39;s local data for account
+    `address`.
+    &#34;&#34;&#34;
+    key = base64.b64encode(key.encode(&#34;utf8&#34;)).decode(&#34;ascii&#34;)
+    for app_state in account_state.get(&#34;apps-local-state&#34;, []):
+        if app_state.get(&#34;id&#34;, None) != app_id:
+            continue
+        for key_state in app_state.get(&#34;key-value&#34;, []):
+            if key_state.get(&#34;key&#34;, None) != key:
+                continue
+            return utils.from_value(key_state.get(&#34;value&#34;, None))
+    return None</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="pyteal_utils.clients.build_algod_local_client"><code class="name flex">
+<span>def <span class="ident">build_algod_local_client</span></span>(<span>data_dir: pathlib.Path) ‑> algosdk.v2client.algod.AlgodClient</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Build the <code>algod</code> client to interface with the local daemon whose
+congifugartion network configruation is at <code>data_dir</code>.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>data_dir</code></strong></dt>
+<dd>the path with the network data</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>the client connected to the local algod daemon</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build_algod_local_client(data_dir: Path) -&gt; AlgodClient:
+    &#34;&#34;&#34;
+    Build the `algod` client to interface with the local daemon whose
+    congifugartion network configruation is at `data_dir`.
+
+    Args:
+        data_dir: the path with the network data
+
+    Returns:
+        the client connected to the local algod daemon
+    &#34;&#34;&#34;
+    algod_address = (data_dir / &#34;algod.net&#34;).read_text().strip()
+    algod_token = (data_dir / &#34;algod.token&#34;).read_text().strip()
+    algod_client = AlgodClient(
+        algod_address=f&#34;http://{algod_address}&#34;, algod_token=algod_token
+    )
+    return algod_client</code></pre>
+</details>
+</dd>
+<dt id="pyteal_utils.clients.build_kmd_local_client"><code class="name flex">
+<span>def <span class="ident">build_kmd_local_client</span></span>(<span>data_dir: pathlib.Path, version: str = '0.5') ‑> algosdk.kmd.KMDClient</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Build the <code>kmd</code> client to interface with the local daemon whose
+congifugartion network configruation is at <code>data_dir</code>.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>data_dir</code></strong></dt>
+<dd>the path with the network data</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>the client connected to the local kmd daemon</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build_kmd_local_client(data_dir: Path, version: str = &#34;0.5&#34;) -&gt; KMDClient:
+    &#34;&#34;&#34;
+    Build the `kmd` client to interface with the local daemon whose
+    congifugartion network configruation is at `data_dir`.
+
+    Args:
+        data_dir: the path with the network data
+
+    Returns:
+        the client connected to the local kmd daemon
+    &#34;&#34;&#34;
+    kmd_address = (data_dir / f&#34;kmd-v{version}&#34; / &#34;kmd.net&#34;).read_text().strip()
+    kmd_token = (data_dir / f&#34;kmd-v{version}&#34; / &#34;kmd.token&#34;).read_text().strip()
+    kmd_client = KMDClient(kmd_address=f&#34;http://{kmd_address}&#34;, kmd_token=kmd_token)
+    return kmd_client</code></pre>
+</details>
+</dd>
+<dt id="pyteal_utils.clients.get_app_global_key"><code class="name flex">
+<span>def <span class="ident">get_app_global_key</span></span>(<span>app_state: Dict[~KT, ~VT], key: str) ‑> Union[int, bytes]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return the value for the given <code>key</code> in <code>app_id</code>'s global data.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_app_global_key(app_state: Dict, key: str) -&gt; Union[int, bytes]:
+    &#34;&#34;&#34;
+    Return the value for the given `key` in `app_id`&#39;s global data.
+    &#34;&#34;&#34;
+    key = base64.b64encode(key.encode(&#34;utf8&#34;)).decode(&#34;ascii&#34;)
+    for key_state in app_state.get(&#34;params&#34;, {}).get(&#34;global-state&#34;, []):
+        if key_state.get(&#34;key&#34;, None) != key:
+            continue
+        return utils.from_value(key_state.get(&#34;value&#34;, None))
+    return None</code></pre>
+</details>
+</dd>
+<dt id="pyteal_utils.clients.get_app_local_key"><code class="name flex">
+<span>def <span class="ident">get_app_local_key</span></span>(<span>account_state: Dict[~KT, ~VT], app_id: int, key: str) ‑> Union[int, bytes]</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return the value for the given <code>key</code> in <code>app_id</code>'s local data for account
+<code>address</code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_app_local_key(account_state: Dict, app_id: int, key: str) -&gt; Union[int, bytes]:
+    &#34;&#34;&#34;
+    Return the value for the given `key` in `app_id`&#39;s local data for account
+    `address`.
+    &#34;&#34;&#34;
+    key = base64.b64encode(key.encode(&#34;utf8&#34;)).decode(&#34;ascii&#34;)
+    for app_state in account_state.get(&#34;apps-local-state&#34;, []):
+        if app_state.get(&#34;id&#34;, None) != app_id:
+            continue
+        for key_state in app_state.get(&#34;key-value&#34;, []):
+            if key_state.get(&#34;key&#34;, None) != key:
+                continue
+            return utils.from_value(key_state.get(&#34;value&#34;, None))
+    return None</code></pre>
+</details>
+</dd>
+<dt id="pyteal_utils.clients.get_wallet_handle"><code class="name flex">
+<span>def <span class="ident">get_wallet_handle</span></span>(<span>client: algosdk.kmd.KMDClient, wallet_id: str, password: str) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Request <code>kmd</code> initialize a wallet handle, and release it when the context
+is closed.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>client</code></strong></dt>
+<dd>the client</dd>
+<dt><strong><code>wallet_id</code></strong></dt>
+<dd>the wallet id</dd>
+<dt><strong><code>password</code></strong></dt>
+<dd>the wallet password</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@contextmanager
+def get_wallet_handle(client: KMDClient, wallet_id: str, password: str) -&gt; str:
+    &#34;&#34;&#34;
+    Request `kmd` initialize a wallet handle, and release it when the context
+    is closed.
+
+    Args:
+        client: the client
+        wallet_id: the wallet id
+        password: the wallet password
+    &#34;&#34;&#34;
+    handle = client.init_wallet_handle(wallet_id, password)
+    yield handle
+    client.release_wallet_handle(handle)</code></pre>
+</details>
+</dd>
+<dt id="pyteal_utils.clients.get_wallet_id"><code class="name flex">
+<span>def <span class="ident">get_wallet_id</span></span>(<span>kmd_client: algosdk.kmd.KMDClient, name: str) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get the ID of the wallet of a given name from the <code>kmd</code>.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>kmd_client</code></strong></dt>
+<dd>the <code>kmd</code> client to query</dd>
+<dt><strong><code>name</code></strong></dt>
+<dd>the wallet name</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>the wallet ID in <code>kmd</code> or <code>None</code> if it is not found</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_wallet_id(kmd_client: KMDClient, name: str) -&gt; str:
+    &#34;&#34;&#34;
+    Get the ID of the wallet of a given name from the `kmd`.
+
+    Args:
+        kmd_client: the `kmd` client to query
+        name: the wallet name
+
+    Returns:
+        the wallet ID in `kmd` or `None` if it is not found
+    &#34;&#34;&#34;
+    wallets = {w[&#34;name&#34;]: w for w in kmd_client.list_wallets()}
+    wallet_id = wallets.get(name, {}).get(&#34;id&#34;, None)
+    return wallet_id</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="pyteal_utils" href="index.html">pyteal_utils</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="pyteal_utils.clients.build_algod_local_client" href="#pyteal_utils.clients.build_algod_local_client">build_algod_local_client</a></code></li>
+<li><code><a title="pyteal_utils.clients.build_kmd_local_client" href="#pyteal_utils.clients.build_kmd_local_client">build_kmd_local_client</a></code></li>
+<li><code><a title="pyteal_utils.clients.get_app_global_key" href="#pyteal_utils.clients.get_app_global_key">get_app_global_key</a></code></li>
+<li><code><a title="pyteal_utils.clients.get_app_local_key" href="#pyteal_utils.clients.get_app_local_key">get_app_local_key</a></code></li>
+<li><code><a title="pyteal_utils.clients.get_wallet_handle" href="#pyteal_utils.clients.get_wallet_handle">get_wallet_handle</a></code></li>
+<li><code><a title="pyteal_utils.clients.get_wallet_id" href="#pyteal_utils.clients.get_wallet_id">get_wallet_id</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>
