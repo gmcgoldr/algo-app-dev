@@ -42,7 +42,8 @@ def main_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(&#34;network&#34;, choices=(&#34;private&#34;, &#34;private_dev&#34;))
     parser.add_argument(&#34;action&#34;, choices=(&#34;start&#34;, &#34;stop&#34;))
-    parser.add_argument(&#34;--path&#34;, type=Path, default=Path.home() / &#34;nets&#34;)
+    # default data path is be the `nets` directory in the algorand home
+    parser.add_argument(&#34;--path&#34;, type=Path, default=Path(&#34;/var/lib/algorand/nets&#34;))
     args = parser.parse_args()
 
     main(**vars(args))
@@ -89,7 +90,8 @@ if __name__ == &#34;__main__&#34;:
     parser = argparse.ArgumentParser()
     parser.add_argument(&#34;network&#34;, choices=(&#34;private&#34;, &#34;private_dev&#34;))
     parser.add_argument(&#34;action&#34;, choices=(&#34;start&#34;, &#34;stop&#34;))
-    parser.add_argument(&#34;--path&#34;, type=Path, default=Path.home() / &#34;nets&#34;)
+    # default data path is be the `nets` directory in the algorand home
+    parser.add_argument(&#34;--path&#34;, type=Path, default=Path(&#34;/var/lib/algorand/nets&#34;))
     args = parser.parse_args()
 
     main(**vars(args))</code></pre>
