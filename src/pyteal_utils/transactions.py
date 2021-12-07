@@ -5,8 +5,8 @@ from algosdk.future import transaction
 from algosdk.future.transaction import PaymentTxn
 from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
+from algosdk.wallet import Wallet
 
-from .clients import get_wallet_handle, get_wallet_id
 from .utils import AccountMeta
 
 
@@ -83,29 +83,21 @@ def fund_from_genesis(
     Returns:
         the funded account info, and funding transaction id
     """
-    wallet_id = get_wallet_id(kmd_client, "unencrypted-default-wallet")
+    wallet = Wallet("unencrypted-default-wallet", "", kmd_client)
+    sender_address = wallet.list_keys()[0]
 
-    # Get the address of the source account with all the genesis tokens
-    with get_wallet_handle(kmd_client, wallet_id, "") as handle:
-        keys = kmd_client.list_keys(handle)
-        if not keys:
-            raise RuntimeError("funded account not found in wallet")
-        sender_address = keys[0]
-
-    account = AccountMeta(*ag.account.generate_account())
+    receiver = AccountMeta(*ag.account.generate_account())
 
     # Transfer algos to the escrow account
     params = algod_client.suggested_params()
     params.fee = 0  # use the minimum network fee
     txn = PaymentTxn(
-        sender=sender_address, sp=params, receiver=account.address, amt=amount
+        sender=sender_address, sp=params, receiver=receiver.address, amt=amount
     )
-    # Sign with the sender account keys, managed by its wallet
-    with get_wallet_handle(kmd_client, wallet_id, "") as handle:
-        txn = kmd_client.sign_transaction(handle, "", txn)
+    txn = wallet.sign_transaction(txn)
     txid = algod_client.send_transaction(txn)
 
-    return account, txid
+    return receiver, txid
 
 
 def group_txns(*txns: transaction.Transaction) -> List[transaction.Transaction]:

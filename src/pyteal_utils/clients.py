@@ -49,38 +49,6 @@ def build_kmd_local_client(data_dir: Path, version: str = "0.5") -> KMDClient:
     return kmd_client
 
 
-def get_wallet_id(kmd_client: KMDClient, name: str) -> str:
-    """
-    Get the ID of the wallet of a given name from the `kmd`.
-
-    Args:
-        kmd_client: the `kmd` client to query
-        name: the wallet name
-
-    Returns:
-        the wallet ID in `kmd` or `None` if it is not found
-    """
-    wallets = {w["name"]: w for w in kmd_client.list_wallets()}
-    wallet_id = wallets.get(name, {}).get("id", None)
-    return wallet_id
-
-
-@contextmanager
-def get_wallet_handle(client: KMDClient, wallet_id: str, password: str) -> str:
-    """
-    Request `kmd` initialize a wallet handle, and release it when the context
-    is closed.
-
-    Args:
-        client: the client
-        wallet_id: the wallet id
-        password: the wallet password
-    """
-    handle = client.init_wallet_handle(wallet_id, password)
-    yield handle
-    client.release_wallet_handle(handle)
-
-
 def get_app_global_key(app_state: Dict, key: str) -> Union[int, bytes]:
     """
     Return the value for the given `key` in `app_id`'s global data.
