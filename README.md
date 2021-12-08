@@ -1,4 +1,4 @@
-# PyTeal Utils
+# Algo App Dev
 
 Utilities to help in the development of PyTeal contracts for Algorand.
 
@@ -7,7 +7,7 @@ Utilities to help in the development of PyTeal contracts for Algorand.
 You should install the package globally so that using commands run with `sudo -u algorand` can access to the package and binaries.
 
 ```bash
-sudo pip install -U pyteal-utils
+sudo pip install -U algo-app-dev
 ```
 
 ### Pre-requisits
@@ -32,8 +32,8 @@ sudo apt-get install algorand
 The following command line utilities are isntalled with the package.
 They help streamline some common system tasks realting to algorand devleopment:
 
-- `ptu-make-node`: this command can be used to setup a private, and private development node
-- `ptu-run-node`: this command can be used to start or stop node daemons
+- `aad-make-node`: this command can be used to setup a private, and private development node
+- `aad-run-node`: this command can be used to start or stop node daemons
 
 ## Modules
 
@@ -147,7 +147,7 @@ NOTE: in order to use the testing functionality, you must install the `dev` depe
 This is done with the command:
 
 ```bash
-sudo pip install -U pyteal-utils[dev]
+sudo pip install -U algo-app-dev[dev]
 ```
 
 You should run tests as the `algorand` user so that the tests can access the local daemons.
@@ -165,20 +165,20 @@ testing with `pivate` takes 10s of minutes.
 The flag `-n X` can be used to split the tests into that many parallel processes.
 
 ```bash
-sudo -u algorand ptu-run-node private_dev start
+sudo -u algorand aad-run-node private_dev start
 sudo -u algorand pytest -n 4 tests/
-sudo -u algorand ptu-run-node private_dev stop
+sudo -u algorand aad-run-node private_dev stop
 ```
 
 ### PyTest envioronment
 
-The module `pyteal_utils.testing` contains some `pytest` fixutres that are widely applicable.
+The module `algoappdev.testing` contains some `pytest` fixutres that are widely applicable.
 If you want to make those fixutres available to all your tests,
 you can create a file `conftest.py` in your test root directory and write to it:
 
 ```python
 # conftest.py
-from pyteal_utils.testing import *
+from algoappdev.testing import *
 ```
 
 It also exposes two variables which can be configured through environment variables:
@@ -186,7 +186,7 @@ It also exposes two variables which can be configured through environment variab
 - `NODE_DIR`: this should be the path to the node data to work with.
 - `WAIT_ROUNDS`: this should be set to the maximun number of rounds to await transaction confirmations.
 
-Both are read from the environment varible with corresponding name prefixed with `PTU_`.
+Both are read from the environment varible with corresponding name prefixed with `AAD_`.
 
 `NODE_DIR` defaults to the private dev node data path.
 If your system is configured differently, you will need to set this accordingly.

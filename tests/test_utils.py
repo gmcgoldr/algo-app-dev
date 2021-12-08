@@ -1,7 +1,7 @@
 from algosdk.v2client.models.teal_key_value import TealKeyValue
 from algosdk.v2client.models.teal_value import TealValue
 
-from pyteal_utils import utils
+from algoappdev import utils
 
 
 def test_app_info_builds_from_result():

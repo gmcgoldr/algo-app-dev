@@ -3,8 +3,8 @@ import pyteal as tl
 from algosdk.future.transaction import ApplicationNoOpTxn
 from algosdk.v2client.algod import AlgodClient
 
-from pyteal_utils import apps, dryruns
-from pyteal_utils.utils import AccountMeta, to_key_value
+from algoappdev import apps, dryruns
+from algoappdev.utils import AccountMeta, to_key_value
 
 
 def test_txn_source_run_executes(

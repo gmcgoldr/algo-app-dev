@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
-<title>pyteal_utils.transactions API documentation</title>
+<title>algoappdev.transactions API documentation</title>
 <meta name="description" content="" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
@@ -19,7 +19,7 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>pyteal_utils.transactions</code></h1>
+<h1 class="title">Module <code>algoappdev.transactions</code></h1>
 </header>
 <section id="section-intro">
 <details class="source">
@@ -33,8 +33,8 @@ from algosdk.future import transaction
 from algosdk.future.transaction import PaymentTxn
 from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
+from algosdk.wallet import Wallet
 
-from .clients import get_wallet_handle, get_wallet_id
 from .utils import AccountMeta
 
 
@@ -111,29 +111,21 @@ def fund_from_genesis(
     Returns:
         the funded account info, and funding transaction id
     &#34;&#34;&#34;
-    wallet_id = get_wallet_id(kmd_client, &#34;unencrypted-default-wallet&#34;)
+    wallet = Wallet(&#34;unencrypted-default-wallet&#34;, &#34;&#34;, kmd_client)
+    sender_address = wallet.list_keys()[0]
 
-    # Get the address of the source account with all the genesis tokens
-    with get_wallet_handle(kmd_client, wallet_id, &#34;&#34;) as handle:
-        keys = kmd_client.list_keys(handle)
-        if not keys:
-            raise RuntimeError(&#34;funded account not found in wallet&#34;)
-        sender_address = keys[0]
-
-    account = AccountMeta(*ag.account.generate_account())
+    receiver = AccountMeta(*ag.account.generate_account())
 
     # Transfer algos to the escrow account
     params = algod_client.suggested_params()
     params.fee = 0  # use the minimum network fee
     txn = PaymentTxn(
-        sender=sender_address, sp=params, receiver=account.address, amt=amount
+        sender=sender_address, sp=params, receiver=receiver.address, amt=amount
     )
-    # Sign with the sender account keys, managed by its wallet
-    with get_wallet_handle(kmd_client, wallet_id, &#34;&#34;) as handle:
-        txn = kmd_client.sign_transaction(handle, &#34;&#34;, txn)
+    txn = wallet.sign_transaction(txn)
     txid = algod_client.send_transaction(txn)
 
-    return account, txid
+    return receiver, txid
 
 
 def group_txns(*txns: transaction.Transaction) -&gt; List[transaction.Transaction]:
@@ -169,8 +161,8 @@ def pad_lease_bytes(lease: bytes) -&gt; bytes:
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="pyteal_utils.transactions.fund_from_genesis"><code class="name flex">
-<span>def <span class="ident">fund_from_genesis</span></span>(<span>algod_client: algosdk.v2client.algod.AlgodClient, kmd_client: algosdk.kmd.KMDClient, amount: int) ‑> Tuple[<a title="pyteal_utils.utils.AccountMeta" href="utils.html#pyteal_utils.utils.AccountMeta">AccountMeta</a>, str]</span>
+<dt id="algoappdev.transactions.fund_from_genesis"><code class="name flex">
+<span>def <span class="ident">fund_from_genesis</span></span>(<span>algod_client: algosdk.v2client.algod.AlgodClient, kmd_client: algosdk.kmd.KMDClient, amount: int) ‑> Tuple[<a title="algoappdev.utils.AccountMeta" href="utils.html#algoappdev.utils.AccountMeta">AccountMeta</a>, str]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Create a new account and fund it from the account that received the gensis
@@ -210,36 +202,28 @@ is the address of the account with the genesis funds.</p>
     Returns:
         the funded account info, and funding transaction id
     &#34;&#34;&#34;
-    wallet_id = get_wallet_id(kmd_client, &#34;unencrypted-default-wallet&#34;)
+    wallet = Wallet(&#34;unencrypted-default-wallet&#34;, &#34;&#34;, kmd_client)
+    sender_address = wallet.list_keys()[0]
 
-    # Get the address of the source account with all the genesis tokens
-    with get_wallet_handle(kmd_client, wallet_id, &#34;&#34;) as handle:
-        keys = kmd_client.list_keys(handle)
-        if not keys:
-            raise RuntimeError(&#34;funded account not found in wallet&#34;)
-        sender_address = keys[0]
-
-    account = AccountMeta(*ag.account.generate_account())
+    receiver = AccountMeta(*ag.account.generate_account())
 
     # Transfer algos to the escrow account
     params = algod_client.suggested_params()
     params.fee = 0  # use the minimum network fee
     txn = PaymentTxn(
-        sender=sender_address, sp=params, receiver=account.address, amt=amount
+        sender=sender_address, sp=params, receiver=receiver.address, amt=amount
     )
-    # Sign with the sender account keys, managed by its wallet
-    with get_wallet_handle(kmd_client, wallet_id, &#34;&#34;) as handle:
-        txn = kmd_client.sign_transaction(handle, &#34;&#34;, txn)
+    txn = wallet.sign_transaction(txn)
     txid = algod_client.send_transaction(txn)
 
-    return account, txid</code></pre>
+    return receiver, txid</code></pre>
 </details>
 </dd>
-<dt id="pyteal_utils.transactions.get_confirmed_transaction"><code class="name flex">
+<dt id="algoappdev.transactions.get_confirmed_transaction"><code class="name flex">
 <span>def <span class="ident">get_confirmed_transaction</span></span>(<span>client: algosdk.v2client.algod.AlgodClient, transaction_id: int, timeout_blocks: int) ‑> Dict[~KT, ~VT]</span>
 </code></dt>
 <dd>
-<div class="desc"><p>See <code><a title="pyteal_utils.transactions.get_confirmed_transactions" href="#pyteal_utils.transactions.get_confirmed_transactions">get_confirmed_transactions()</a></code>, but for a single transaction id.</p></div>
+<div class="desc"><p>See <code><a title="algoappdev.transactions.get_confirmed_transactions" href="#algoappdev.transactions.get_confirmed_transactions">get_confirmed_transactions()</a></code>, but for a single transaction id.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -257,7 +241,7 @@ is the address of the account with the genesis funds.</p>
         return None</code></pre>
 </details>
 </dd>
-<dt id="pyteal_utils.transactions.get_confirmed_transactions"><code class="name flex">
+<dt id="algoappdev.transactions.get_confirmed_transactions"><code class="name flex">
 <span>def <span class="ident">get_confirmed_transactions</span></span>(<span>client: algosdk.v2client.algod.AlgodClient, transaction_ids: List[int], timeout_blocks: int) ‑> Dict[~KT, ~VT]</span>
 </code></dt>
 <dd>
@@ -319,7 +303,7 @@ is the address of the account with the genesis funds.</p>
     return infos</code></pre>
 </details>
 </dd>
-<dt id="pyteal_utils.transactions.group_txns"><code class="name flex">
+<dt id="algoappdev.transactions.group_txns"><code class="name flex">
 <span>def <span class="ident">group_txns</span></span>(<span>*txns: algosdk.future.transaction.Transaction) ‑> List[algosdk.future.transaction.Transaction]</span>
 </code></dt>
 <dd>
@@ -351,7 +335,7 @@ is the address of the account with the genesis funds.</p>
     return txns</code></pre>
 </details>
 </dd>
-<dt id="pyteal_utils.transactions.pad_lease_bytes"><code class="name flex">
+<dt id="algoappdev.transactions.pad_lease_bytes"><code class="name flex">
 <span>def <span class="ident">pad_lease_bytes</span></span>(<span>lease: bytes) ‑> bytes</span>
 </code></dt>
 <dd>
@@ -384,16 +368,16 @@ correct number of bytes.</p></div>
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="pyteal_utils" href="index.html">pyteal_utils</a></code></li>
+<li><code><a title="algoappdev" href="index.html">algoappdev</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="pyteal_utils.transactions.fund_from_genesis" href="#pyteal_utils.transactions.fund_from_genesis">fund_from_genesis</a></code></li>
-<li><code><a title="pyteal_utils.transactions.get_confirmed_transaction" href="#pyteal_utils.transactions.get_confirmed_transaction">get_confirmed_transaction</a></code></li>
-<li><code><a title="pyteal_utils.transactions.get_confirmed_transactions" href="#pyteal_utils.transactions.get_confirmed_transactions">get_confirmed_transactions</a></code></li>
-<li><code><a title="pyteal_utils.transactions.group_txns" href="#pyteal_utils.transactions.group_txns">group_txns</a></code></li>
-<li><code><a title="pyteal_utils.transactions.pad_lease_bytes" href="#pyteal_utils.transactions.pad_lease_bytes">pad_lease_bytes</a></code></li>
+<li><code><a title="algoappdev.transactions.fund_from_genesis" href="#algoappdev.transactions.fund_from_genesis">fund_from_genesis</a></code></li>
+<li><code><a title="algoappdev.transactions.get_confirmed_transaction" href="#algoappdev.transactions.get_confirmed_transaction">get_confirmed_transaction</a></code></li>
+<li><code><a title="algoappdev.transactions.get_confirmed_transactions" href="#algoappdev.transactions.get_confirmed_transactions">get_confirmed_transactions</a></code></li>
+<li><code><a title="algoappdev.transactions.group_txns" href="#algoappdev.transactions.group_txns">group_txns</a></code></li>
+<li><code><a title="algoappdev.transactions.pad_lease_bytes" href="#algoappdev.transactions.pad_lease_bytes">pad_lease_bytes</a></code></li>
 </ul>
 </li>
 </ul>

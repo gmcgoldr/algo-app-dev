@@ -19,7 +19,7 @@ def main(network: str, path: Path, force: bool):
             return
 
     template_path = Path(
-        pkg_resources.resource_filename("pyteal_utils", f"data/network_{network}.json")
+        pkg_resources.resource_filename("algoappdev", f"data/network_{network}.json")
     )
 
     subprocess.call(

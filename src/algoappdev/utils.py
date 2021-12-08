@@ -8,7 +8,7 @@ from algosdk.v2client.models.teal_value import TealValue
 ZERO_ADDRESS = ag.encoding.encode_address(bytes(32))
 
 
-class PyTealUtilsError(Exception):
+class AlgoAppDevError(Exception):
     pass
 
 
@@ -49,7 +49,7 @@ def to_value(value: Union[int, bytes]) -> TealValue:
     elif isinstance(value, int):
         return TealValue(type=2, uint=value)
     else:
-        raise PyTealUtilsError(f"invalid value type: {type(value)}")
+        raise AlgoAppDevError(f"invalid value type: {type(value)}")
 
 
 def to_key_value(key: bytes, value: Union[int, bytes]) -> TealKeyValue:

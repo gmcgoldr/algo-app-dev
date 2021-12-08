@@ -1,10 +1,9 @@
 import base64
-from unittest import mock
 
 from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
 
-from pyteal_utils import clients
+from algoappdev import clients
 
 
 def test_builds_local_algod_client(algod_client: AlgodClient):

@@ -14,12 +14,12 @@ from algosdk.future.transaction import (
 from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
 
-from pyteal_utils import apps
-from pyteal_utils import dryruns as dr
-from pyteal_utils import transactions
-from pyteal_utils.clients import get_app_global_key, get_app_local_key
-from pyteal_utils.testing import WAIT_ROUNDS, fund_account
-from pyteal_utils.utils import AccountMeta, AppMeta
+from algoappdev import apps
+from algoappdev import dryruns as dr
+from algoappdev import transactions
+from algoappdev.clients import get_app_global_key, get_app_local_key
+from algoappdev.testing import WAIT_ROUNDS, fund_account
+from algoappdev.utils import AccountMeta, AppMeta
 
 MSG_REJECT = r".*transaction rejected by ApprovalProgram$"
 

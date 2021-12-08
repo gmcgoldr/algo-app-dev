@@ -18,9 +18,9 @@ from algosdk.v2client.models.dryrun_request import DryrunRequest
 from algosdk.v2client.models.dryrun_source import DryrunSource
 from algosdk.v2client.models.teal_key_value import TealKeyValue
 
-from pyteal_utils import apps
-from pyteal_utils.apps import AppBuilder, compile_expr
-from pyteal_utils.utils import PyTealUtilsError, from_value
+from algoappdev import apps
+from algoappdev.apps import AppBuilder, compile_expr
+from algoappdev.utils import AlgoAppDevError, from_value
 
 
 class AppCallContext(NamedTuple):
@@ -171,7 +171,7 @@ def source_run(
     try:
         OnComplete(txn.on_complete)
     except (AttributeError, ValueError):
-        raise PyTealUtilsError("transaction must be an application call")
+        raise AlgoAppDevError("transaction must be an application call")
 
     app_idx = txn.index
     if app_idx == 0:
@@ -236,7 +236,7 @@ def builder_run(
     try:
         on_complete = OnComplete(txn.on_complete)
     except (AttributeError, ValueError):
-        raise PyTealUtilsError("transaction must be an application call")
+        raise AlgoAppDevError("transaction must be an application call")
 
     app_idx = txn.index
     if app_idx == 0:
@@ -300,7 +300,7 @@ def context_run(context: AppCallContext) -> DryrunRequest:
 def check_err(result: Dict):
     message = result.get("error", None)
     if message:
-        raise PyTealUtilsError(f"dryrun error: {message}")
+        raise AlgoAppDevError(f"dryrun error: {message}")
 
 
 def get_messages(result: Dict) -> List[str]:

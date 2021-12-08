@@ -3,9 +3,9 @@ from algosdk.future.transaction import PaymentTxn
 from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
 
-from pyteal_utils import transactions
-from pyteal_utils.testing import WAIT_ROUNDS
-from pyteal_utils.utils import AccountMeta
+from algoappdev import transactions
+from algoappdev.testing import WAIT_ROUNDS
+from algoappdev.utils import AccountMeta
 
 
 def test_fund_from_genesis_funds_new_account(

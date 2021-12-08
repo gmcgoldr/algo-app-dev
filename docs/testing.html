@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
-<title>pyteal_utils.scripts.make_node API documentation</title>
+<title>algoappdev.testing API documentation</title>
 <meta name="description" content="" />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
@@ -19,81 +19,51 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>pyteal_utils.scripts.make_node</code></h1>
+<h1 class="title">Module <code>algoappdev.testing</code></h1>
 </header>
 <section id="section-intro">
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">import shutil
-import subprocess
+<pre><code class="python">import os
 from pathlib import Path
 
-import pkg_resources
+import algosdk as ag
+import pytest
+from algosdk.kmd import KMDClient
+from algosdk.v2client.algod import AlgodClient
+
+from algoappdev import clients, transactions
+from algoappdev.utils import AccountMeta
+
+NODE_DIR = Path(os.getenv(&#34;AAD_DATA&#34;, &#34;/var/lib/algorand/nets/private_dev/Primary&#34;))
+WAIT_ROUNDS = int(os.getenv(&#34;ADD_WAIT_ROUNDS&#34;, 1))
 
 
-def main(network: str, path: Path, force: bool):
-    path: Path = path / network
-
-    if force:
-        shutil.rmtree(str(path), ignore_errors=True)
-
-    elif path.is_dir():
-        if input(&#34;Overwrite [y/n]?&#34;).strip() == &#34;y&#34;:
-            shutil.rmtree(str(path), ignore_errors=True)
-        else:
-            print(&#34;Aborting&#34;)
-            return
-
-    template_path = Path(
-        pkg_resources.resource_filename(&#34;pyteal_utils&#34;, f&#34;data/network_{network}.json&#34;)
-    )
-
-    subprocess.call(
-        [
-            &#34;goal&#34;,
-            &#34;network&#34;,
-            &#34;create&#34;,
-            &#34;--rootdir&#34;,
-            str(path),
-            &#34;--network&#34;,
-            network,
-            &#34;--template&#34;,
-            str(template_path),
-        ]
-    )
-
-    if network == &#34;private_dev&#34;:
-        subprocess.call(
-            [
-                &#34;algocfg&#34;,
-                &#34;-d&#34;,
-                str(path / &#34;Primary&#34;),
-                &#34;set&#34;,
-                &#34;-p&#34;,
-                &#34;EnableDeveloperAPI&#34;,
-                &#34;-v&#34;,
-                &#34;true&#34;,
-            ]
-        )
+@pytest.fixture(scope=&#34;module&#34;)
+def algod_client() -&gt; AlgodClient:
+    return clients.build_algod_local_client(NODE_DIR)
 
 
-def main_args():
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(&#34;network&#34;, choices=(&#34;private&#34;, &#34;private_dev&#34;))
-    # default data path is be the `nets` directory in the algorand home
-    parser.add_argument(&#34;--path&#34;, type=Path, default=Path(&#34;/var/lib/algorand/nets&#34;))
-    parser.add_argument(&#34;-f&#34;, &#34;--force&#34;, action=&#34;store_true&#34;)
-    args = parser.parse_args()
-
-    main(**vars(args))
+@pytest.fixture(scope=&#34;module&#34;)
+def kmd_client() -&gt; AlgodClient:
+    return clients.build_kmd_local_client(NODE_DIR)
 
 
-if __name__ == &#34;__main__&#34;:
-    main_args()</code></pre>
+def fund_account(
+    algod_client: AlgodClient,
+    kmd_client: KMDClient,
+    microalgos: int,
+) -&gt; AccountMeta:
+    account, txid = transactions.fund_from_genesis(algod_client, kmd_client, microalgos)
+    transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
+    return account
+
+
+@pytest.fixture
+def funded_account(algod_client: AlgodClient, kmd_client: KMDClient) -&gt; AccountMeta:
+    return fund_account(algod_client, kmd_client, ag.util.algos_to_microalgos(1000))</code></pre>
 </details>
 </section>
 <section>
@@ -103,8 +73,8 @@ if __name__ == &#34;__main__&#34;:
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="pyteal_utils.scripts.make_node.main"><code class="name flex">
-<span>def <span class="ident">main</span></span>(<span>network: str, path: pathlib.Path, force: bool)</span>
+<dt id="algoappdev.testing.algod_client"><code class="name flex">
+<span>def <span class="ident">algod_client</span></span>(<span>) ‑> algosdk.v2client.algod.AlgodClient</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -112,54 +82,13 @@ if __name__ == &#34;__main__&#34;:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def main(network: str, path: Path, force: bool):
-    path: Path = path / network
-
-    if force:
-        shutil.rmtree(str(path), ignore_errors=True)
-
-    elif path.is_dir():
-        if input(&#34;Overwrite [y/n]?&#34;).strip() == &#34;y&#34;:
-            shutil.rmtree(str(path), ignore_errors=True)
-        else:
-            print(&#34;Aborting&#34;)
-            return
-
-    template_path = Path(
-        pkg_resources.resource_filename(&#34;pyteal_utils&#34;, f&#34;data/network_{network}.json&#34;)
-    )
-
-    subprocess.call(
-        [
-            &#34;goal&#34;,
-            &#34;network&#34;,
-            &#34;create&#34;,
-            &#34;--rootdir&#34;,
-            str(path),
-            &#34;--network&#34;,
-            network,
-            &#34;--template&#34;,
-            str(template_path),
-        ]
-    )
-
-    if network == &#34;private_dev&#34;:
-        subprocess.call(
-            [
-                &#34;algocfg&#34;,
-                &#34;-d&#34;,
-                str(path / &#34;Primary&#34;),
-                &#34;set&#34;,
-                &#34;-p&#34;,
-                &#34;EnableDeveloperAPI&#34;,
-                &#34;-v&#34;,
-                &#34;true&#34;,
-            ]
-        )</code></pre>
+<pre><code class="python">@pytest.fixture(scope=&#34;module&#34;)
+def algod_client() -&gt; AlgodClient:
+    return clients.build_algod_local_client(NODE_DIR)</code></pre>
 </details>
 </dd>
-<dt id="pyteal_utils.scripts.make_node.main_args"><code class="name flex">
-<span>def <span class="ident">main_args</span></span>(<span>)</span>
+<dt id="algoappdev.testing.fund_account"><code class="name flex">
+<span>def <span class="ident">fund_account</span></span>(<span>algod_client: algosdk.v2client.algod.AlgodClient, kmd_client: algosdk.kmd.KMDClient, microalgos: int) ‑> <a title="algoappdev.utils.AccountMeta" href="utils.html#algoappdev.utils.AccountMeta">AccountMeta</a></span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -167,17 +96,42 @@ if __name__ == &#34;__main__&#34;:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def main_args():
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(&#34;network&#34;, choices=(&#34;private&#34;, &#34;private_dev&#34;))
-    # default data path is be the `nets` directory in the algorand home
-    parser.add_argument(&#34;--path&#34;, type=Path, default=Path(&#34;/var/lib/algorand/nets&#34;))
-    parser.add_argument(&#34;-f&#34;, &#34;--force&#34;, action=&#34;store_true&#34;)
-    args = parser.parse_args()
-
-    main(**vars(args))</code></pre>
+<pre><code class="python">def fund_account(
+    algod_client: AlgodClient,
+    kmd_client: KMDClient,
+    microalgos: int,
+) -&gt; AccountMeta:
+    account, txid = transactions.fund_from_genesis(algod_client, kmd_client, microalgos)
+    transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
+    return account</code></pre>
+</details>
+</dd>
+<dt id="algoappdev.testing.funded_account"><code class="name flex">
+<span>def <span class="ident">funded_account</span></span>(<span>algod_client: algosdk.v2client.algod.AlgodClient, kmd_client: algosdk.kmd.KMDClient) ‑> <a title="algoappdev.utils.AccountMeta" href="utils.html#algoappdev.utils.AccountMeta">AccountMeta</a></span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.fixture
+def funded_account(algod_client: AlgodClient, kmd_client: KMDClient) -&gt; AccountMeta:
+    return fund_account(algod_client, kmd_client, ag.util.algos_to_microalgos(1000))</code></pre>
+</details>
+</dd>
+<dt id="algoappdev.testing.kmd_client"><code class="name flex">
+<span>def <span class="ident">kmd_client</span></span>(<span>) ‑> algosdk.v2client.algod.AlgodClient</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.fixture(scope=&#34;module&#34;)
+def kmd_client() -&gt; AlgodClient:
+    return clients.build_kmd_local_client(NODE_DIR)</code></pre>
 </details>
 </dd>
 </dl>
@@ -193,13 +147,15 @@ if __name__ == &#34;__main__&#34;:
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="pyteal_utils.scripts" href="index.html">pyteal_utils.scripts</a></code></li>
+<li><code><a title="algoappdev" href="index.html">algoappdev</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="pyteal_utils.scripts.make_node.main" href="#pyteal_utils.scripts.make_node.main">main</a></code></li>
-<li><code><a title="pyteal_utils.scripts.make_node.main_args" href="#pyteal_utils.scripts.make_node.main_args">main_args</a></code></li>
+<li><code><a title="algoappdev.testing.algod_client" href="#algoappdev.testing.algod_client">algod_client</a></code></li>
+<li><code><a title="algoappdev.testing.fund_account" href="#algoappdev.testing.fund_account">fund_account</a></code></li>
+<li><code><a title="algoappdev.testing.funded_account" href="#algoappdev.testing.funded_account">funded_account</a></code></li>
+<li><code><a title="algoappdev.testing.kmd_client" href="#algoappdev.testing.kmd_client">kmd_client</a></code></li>
 </ul>
 </li>
 </ul>

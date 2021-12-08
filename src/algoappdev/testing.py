@@ -6,11 +6,11 @@ import pytest
 from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
 
-from pyteal_utils import clients, transactions
-from pyteal_utils.utils import AccountMeta
+from algoappdev import clients, transactions
+from algoappdev.utils import AccountMeta
 
-NODE_DIR = Path(os.getenv("PTU_DATA", "/var/lib/algorand/nets/private_dev/Primary"))
-WAIT_ROUNDS = int(os.getenv("PTU_WAIT_ROUNDS", 1))
+NODE_DIR = Path(os.getenv("AAD_DATA", "/var/lib/algorand/nets/private_dev/Primary"))
+WAIT_ROUNDS = int(os.getenv("ADD_WAIT_ROUNDS", 1))
 
 
 @pytest.fixture(scope="module")

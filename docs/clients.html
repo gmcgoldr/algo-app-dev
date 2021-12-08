@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
-<title>pyteal_utils.clients API documentation</title>
+<title>algoappdev.clients API documentation</title>
 <meta name="description" content="Utilities to connect to and interact with `algod` and `kmd` clients." />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
@@ -19,7 +19,7 @@
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>pyteal_utils.clients</code></h1>
+<h1 class="title">Module <code>algoappdev.clients</code></h1>
 </header>
 <section id="section-intro">
 <p>Utilities to connect to and interact with <code>algod</code> and <code>kmd</code> clients.</p>
@@ -78,38 +78,6 @@ def build_kmd_local_client(data_dir: Path, version: str = &#34;0.5&#34;) -&gt; K
     return kmd_client
 
 
-def get_wallet_id(kmd_client: KMDClient, name: str) -&gt; str:
-    &#34;&#34;&#34;
-    Get the ID of the wallet of a given name from the `kmd`.
-
-    Args:
-        kmd_client: the `kmd` client to query
-        name: the wallet name
-
-    Returns:
-        the wallet ID in `kmd` or `None` if it is not found
-    &#34;&#34;&#34;
-    wallets = {w[&#34;name&#34;]: w for w in kmd_client.list_wallets()}
-    wallet_id = wallets.get(name, {}).get(&#34;id&#34;, None)
-    return wallet_id
-
-
-@contextmanager
-def get_wallet_handle(client: KMDClient, wallet_id: str, password: str) -&gt; str:
-    &#34;&#34;&#34;
-    Request `kmd` initialize a wallet handle, and release it when the context
-    is closed.
-
-    Args:
-        client: the client
-        wallet_id: the wallet id
-        password: the wallet password
-    &#34;&#34;&#34;
-    handle = client.init_wallet_handle(wallet_id, password)
-    yield handle
-    client.release_wallet_handle(handle)
-
-
 def get_app_global_key(app_state: Dict, key: str) -&gt; Union[int, bytes]:
     &#34;&#34;&#34;
     Return the value for the given `key` in `app_id`&#39;s global data.
@@ -145,7 +113,7 @@ def get_app_local_key(account_state: Dict, app_id: int, key: str) -&gt; Union[in
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="pyteal_utils.clients.build_algod_local_client"><code class="name flex">
+<dt id="algoappdev.clients.build_algod_local_client"><code class="name flex">
 <span>def <span class="ident">build_algod_local_client</span></span>(<span>data_dir: pathlib.Path) ‑> algosdk.v2client.algod.AlgodClient</span>
 </code></dt>
 <dd>
@@ -181,7 +149,7 @@ congifugartion network configruation is at <code>data_dir</code>.</p>
     return algod_client</code></pre>
 </details>
 </dd>
-<dt id="pyteal_utils.clients.build_kmd_local_client"><code class="name flex">
+<dt id="algoappdev.clients.build_kmd_local_client"><code class="name flex">
 <span>def <span class="ident">build_kmd_local_client</span></span>(<span>data_dir: pathlib.Path, version: str = '0.5') ‑> algosdk.kmd.KMDClient</span>
 </code></dt>
 <dd>
@@ -215,7 +183,7 @@ congifugartion network configruation is at <code>data_dir</code>.</p>
     return kmd_client</code></pre>
 </details>
 </dd>
-<dt id="pyteal_utils.clients.get_app_global_key"><code class="name flex">
+<dt id="algoappdev.clients.get_app_global_key"><code class="name flex">
 <span>def <span class="ident">get_app_global_key</span></span>(<span>app_state: Dict[~KT, ~VT], key: str) ‑> Union[int, bytes]</span>
 </code></dt>
 <dd>
@@ -236,7 +204,7 @@ congifugartion network configruation is at <code>data_dir</code>.</p>
     return None</code></pre>
 </details>
 </dd>
-<dt id="pyteal_utils.clients.get_app_local_key"><code class="name flex">
+<dt id="algoappdev.clients.get_app_local_key"><code class="name flex">
 <span>def <span class="ident">get_app_local_key</span></span>(<span>account_state: Dict[~KT, ~VT], app_id: int, key: str) ‑> Union[int, bytes]</span>
 </code></dt>
 <dd>
@@ -262,75 +230,6 @@ congifugartion network configruation is at <code>data_dir</code>.</p>
     return None</code></pre>
 </details>
 </dd>
-<dt id="pyteal_utils.clients.get_wallet_handle"><code class="name flex">
-<span>def <span class="ident">get_wallet_handle</span></span>(<span>client: algosdk.kmd.KMDClient, wallet_id: str, password: str) ‑> str</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Request <code>kmd</code> initialize a wallet handle, and release it when the context
-is closed.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>client</code></strong></dt>
-<dd>the client</dd>
-<dt><strong><code>wallet_id</code></strong></dt>
-<dd>the wallet id</dd>
-<dt><strong><code>password</code></strong></dt>
-<dd>the wallet password</dd>
-</dl></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@contextmanager
-def get_wallet_handle(client: KMDClient, wallet_id: str, password: str) -&gt; str:
-    &#34;&#34;&#34;
-    Request `kmd` initialize a wallet handle, and release it when the context
-    is closed.
-
-    Args:
-        client: the client
-        wallet_id: the wallet id
-        password: the wallet password
-    &#34;&#34;&#34;
-    handle = client.init_wallet_handle(wallet_id, password)
-    yield handle
-    client.release_wallet_handle(handle)</code></pre>
-</details>
-</dd>
-<dt id="pyteal_utils.clients.get_wallet_id"><code class="name flex">
-<span>def <span class="ident">get_wallet_id</span></span>(<span>kmd_client: algosdk.kmd.KMDClient, name: str) ‑> str</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Get the ID of the wallet of a given name from the <code>kmd</code>.</p>
-<h2 id="args">Args</h2>
-<dl>
-<dt><strong><code>kmd_client</code></strong></dt>
-<dd>the <code>kmd</code> client to query</dd>
-<dt><strong><code>name</code></strong></dt>
-<dd>the wallet name</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<p>the wallet ID in <code>kmd</code> or <code>None</code> if it is not found</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_wallet_id(kmd_client: KMDClient, name: str) -&gt; str:
-    &#34;&#34;&#34;
-    Get the ID of the wallet of a given name from the `kmd`.
-
-    Args:
-        kmd_client: the `kmd` client to query
-        name: the wallet name
-
-    Returns:
-        the wallet ID in `kmd` or `None` if it is not found
-    &#34;&#34;&#34;
-    wallets = {w[&#34;name&#34;]: w for w in kmd_client.list_wallets()}
-    wallet_id = wallets.get(name, {}).get(&#34;id&#34;, None)
-    return wallet_id</code></pre>
-</details>
-</dd>
 </dl>
 </section>
 <section>
@@ -344,17 +243,15 @@ def get_wallet_handle(client: KMDClient, wallet_id: str, password: str) -&gt; st
 <ul id="index">
 <li><h3>Super-module</h3>
 <ul>
-<li><code><a title="pyteal_utils" href="index.html">pyteal_utils</a></code></li>
+<li><code><a title="algoappdev" href="index.html">algoappdev</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="pyteal_utils.clients.build_algod_local_client" href="#pyteal_utils.clients.build_algod_local_client">build_algod_local_client</a></code></li>
-<li><code><a title="pyteal_utils.clients.build_kmd_local_client" href="#pyteal_utils.clients.build_kmd_local_client">build_kmd_local_client</a></code></li>
-<li><code><a title="pyteal_utils.clients.get_app_global_key" href="#pyteal_utils.clients.get_app_global_key">get_app_global_key</a></code></li>
-<li><code><a title="pyteal_utils.clients.get_app_local_key" href="#pyteal_utils.clients.get_app_local_key">get_app_local_key</a></code></li>
-<li><code><a title="pyteal_utils.clients.get_wallet_handle" href="#pyteal_utils.clients.get_wallet_handle">get_wallet_handle</a></code></li>
-<li><code><a title="pyteal_utils.clients.get_wallet_id" href="#pyteal_utils.clients.get_wallet_id">get_wallet_id</a></code></li>
+<li><code><a title="algoappdev.clients.build_algod_local_client" href="#algoappdev.clients.build_algod_local_client">build_algod_local_client</a></code></li>
+<li><code><a title="algoappdev.clients.build_kmd_local_client" href="#algoappdev.clients.build_kmd_local_client">build_kmd_local_client</a></code></li>
+<li><code><a title="algoappdev.clients.get_app_global_key" href="#algoappdev.clients.get_app_global_key">get_app_global_key</a></code></li>
+<li><code><a title="algoappdev.clients.get_app_local_key" href="#algoappdev.clients.get_app_local_key">get_app_local_key</a></code></li>
 </ul>
 </li>
 </ul>
