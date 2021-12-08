@@ -204,7 +204,7 @@ def stateful_app() -> apps.AppBuilder:
         on_clear=tl.Seq(
             gstate.set("cleared", gstate.get("cleared") + apps.ONE), tl.Return(apps.ONE)
         ),
-        invokations={
+        invocations={
             "a": tl.Seq(
                 gstate.set("invoked_a", gstate.get("invoked_a") + apps.ONE),
                 lstate.set("invoked_a", lstate.get("invoked_a") + apps.ONE),
@@ -431,7 +431,7 @@ def test_app_builder_clear_updates_state(
     # fmt: on
 
 
-def test_app_builder_invokation_a_is_called(
+def test_app_builder_invocation_a_is_called(
     algod_client: AlgodClient,
     funded_account: AccountMeta,
     stateful_app: apps.AppBuilder,
@@ -465,7 +465,7 @@ def test_app_builder_invokation_a_is_called(
     # fmt: on
 
 
-def test_app_builder_invokation_ab_is_called(
+def test_app_builder_invocation_ab_is_called(
     algod_client: AlgodClient,
     funded_account: AccountMeta,
     stateful_app: apps.AppBuilder,
@@ -499,7 +499,7 @@ def test_app_builder_invokation_ab_is_called(
     # fmt: on
 
 
-def test_app_builder_default_invokation_is_called(
+def test_app_builder_default_invocation_is_called(
     algod_client: AlgodClient,
     funded_account: AccountMeta,
     stateful_app: apps.AppBuilder,
@@ -593,9 +593,9 @@ def multi_state(
             apps.State.KeyInfo("lb", tl.Bytes, None),
         ]
     )
-    # allow manipulating the state using invokations
+    # allow manipulating the state using invocations
     app_1 = apps.AppBuilder(
-        invokations={
+        invocations={
             "set_gb": tl.Seq(
                 state_g1.set("gb", tl.Txn.application_args[1]),
                 tl.Return(apps.ONE),

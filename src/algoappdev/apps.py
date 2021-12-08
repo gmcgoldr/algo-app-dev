@@ -355,12 +355,12 @@ class AppBuilder(NamedTuple):
       and if it returns zero the app cannot be opted-in by accounts.
     - `on_close_out`: this expression is run when a `CloseOut` transaction is
       sent, and if it returns zero the app cannot be closed out by accounts.
-    - `invokations[name]`: these expressions are run when a `NoOp` transaction
+    - `invocations[name]`: these expressions are run when a `NoOp` transaction
       is sent, and the first argument passed to the call is the bytes encoding
       of `name`.
     - `on_no_op`: this expression is run when a `NoOp` transaction is sent, and
-      no invokation matches the first call argument (if supplied). This is the
-      "default invokation".
+      no invocation matches the first call argument (if supplied). This is the
+      "default invocation".
 
     Branch that executes for a `ClearState` transaction:
 
@@ -376,8 +376,8 @@ class AppBuilder(NamedTuple):
     - opt in is allowed and sets the local state defaults
     - close out is not allowed
     - clear is allowed
-    - no invokations
-    - no default invokation
+    - no invocations
+    - no default invocation
     """
 
     on_create: tl.Expr = None
@@ -386,7 +386,7 @@ class AppBuilder(NamedTuple):
     on_opt_in: tl.Expr = None
     on_close_out: tl.Expr = None
     on_clear: tl.Expr = None
-    invokations: Dict[str, tl.Expr] = None
+    invocations: Dict[str, tl.Expr] = None
     on_no_op: tl.Expr = None
     global_state: StateGlobal = None
     local_state: StateLocal = None
@@ -440,18 +440,18 @@ class AppBuilder(NamedTuple):
                 [tl.Txn.on_completion() == tl.OnComplete.CloseOut, self.on_close_out]
             )
 
-        # handle custon invokations with named arg
-        invokations = {} if self.invokations is None else self.invokations
-        for name, expr in invokations.items():
+        # handle custon invocations with named arg
+        invocations = {} if self.invocations is None else self.invocations
+        for name, expr in invocations.items():
             branches.append(
                 [
-                    # use a an invokation branch for no-op calls with the branch
+                    # use a an invocation branch for no-op calls with the branch
                     # name as arg 0
                     tl.And(
                         tl.Txn.on_completion() == tl.OnComplete.NoOp,
                         tl.If(tl.Txn.application_args.length() >= ONE)
                         # if there is an argument passed, then it must match
-                        # the invokation name
+                        # the invocation name
                         .Then(tl.Txn.application_args[0] == tl.Bytes(name))
                         # otherwise fail the branch
                         .Else(ZERO),
@@ -460,7 +460,7 @@ class AppBuilder(NamedTuple):
                 ]
             )
 
-        # if no invokation matched, then try the default no-op
+        # if no invocation matched, then try the default no-op
         if self.on_no_op:
             branches.append(
                 [tl.Txn.on_completion() == tl.OnComplete.NoOp, self.on_no_op]
