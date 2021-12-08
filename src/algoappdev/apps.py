@@ -1,3 +1,5 @@
+"""Utilities for smart contract construction."""
+
 import base64
 from typing import Dict, List, NamedTuple, Type, Union
 
@@ -11,9 +13,11 @@ from algosdk.future.transaction import (
 )
 from algosdk.v2client.algod import AlgodClient
 
-Key = Union[str, bytes]
-TType = Union[Type[tl.Int], Type[tl.Bytes]]
-TValue = Union[tl.Int, tl.Bytes]
+from algoappdev.utils import AlgoAppDevError
+
+Key = Union[int, str, bytes]
+TealType = Union[Type[tl.Int], Type[tl.Bytes]]
+TealValue = Union[tl.Int, tl.Bytes]
 
 ZERO = tl.Int(0)
 ONE = tl.Int(1)
@@ -60,26 +64,35 @@ class State:
         Information about an app state key and associated value.
         """
 
-        def __init__(self, key: Key, ttype: TType, default: TValue):
+        def __init__(self, key: Key, type: TealType, default: tl.Expr = None):
             key = self.as_bytes(key)
-            if len(key) > 64:
-                raise ValueError(f"key too long: {key}")
-
             # the key as bytes
             self.key = key
-            # the tl bytes expression
-            self.tbytes = tl.Bytes(key)
             # the tl type of the key's value
-            self.ttype = ttype
+            self.type = type
             # the tl expression to populate the initial value (can be None)
             self.default = default
 
         @staticmethod
         def as_bytes(key: Key) -> bytes:
-            if isinstance(key, bytes):
-                return key
-            else:
+            """
+            Convert a key to it's byte representation. Validates that the key
+            length doesn't surpass the Algorand maximum of 64 bytes.
+            """
+            if isinstance(key, int):
+                # At most 64 keys are allowed, so this fits in a byte. The
+                # byte order is arbitrary as this is handled internally, but
+                # use big-endian anyway to be consistent with TEAL conventions.
+                key = key.to_bytes(1, "big")
+            if isinstance(key, str):
                 return key.encode("utf8")
+            elif isinstance(key, bytes):
+                pass
+            else:
+                raise AlgoAppDevError(f"invalid key type: {type(key)}")
+            if len(key) > 64:
+                raise AlgoAppDevError(f"key too long: {key}")
+            return key
 
     def __init__(self, infos: List[KeyInfo]):
         self._key_to_info = {i.key: i for i in infos}
@@ -97,9 +110,9 @@ class State:
         num_byte_slices = 0
 
         for info in self._key_to_info.values():
-            if info.ttype is tl.Int:
+            if info.type is tl.Int:
                 num_uints += 1
-            elif info.ttype is tl.Bytes:
+            elif info.type is tl.Bytes:
                 num_byte_slices += 1
 
         return StateSchema(num_uints=num_uints, num_byte_slices=num_byte_slices)
@@ -158,7 +171,7 @@ class StateGlobalExternal(State):
         info = self.key_to_info(key)
         maybe_value = self._maybe_values.get(info.key, None)
         if maybe_value is None:
-            maybe_value = tl.App.globalGetEx(self.app_id, info.tbytes)
+            maybe_value = tl.App.globalGetEx(self.app_id, tl.Bytes(info.key))
             self._maybe_values[info.key] = maybe_value
         return maybe_value
 
@@ -210,12 +223,12 @@ class StateGlobal(StateGlobalExternal):
     def get(self, key: Key) -> tl.Expr:
         """Build the expression to get the state value at `key`"""
         info = self.key_to_info(key)
-        return tl.App.globalGet(info.tbytes)
+        return tl.App.globalGet(tl.Bytes(info.key))
 
-    def set(self, key: Key, value: TValue) -> tl.Expr:
+    def set(self, key: Key, value: TealValue) -> tl.Expr:
         """Build the expression to set the state value at `key`"""
         info = self.key_to_info(key)
-        return tl.App.globalPut(info.tbytes, value)
+        return tl.App.globalPut(tl.Bytes(info.key), value)
 
     def constructor(self) -> tl.Expr:
         """
@@ -224,7 +237,7 @@ class StateGlobal(StateGlobalExternal):
         """
         return tl.Seq(
             *[
-                tl.App.globalPut(i.tbytes, i.default)
+                tl.App.globalPut(tl.Bytes(i.key), i.default)
                 for i in self.key_infos()
                 if i.default
             ]
@@ -257,7 +270,9 @@ class StateLocalExternal(State):
         info = self.key_to_info(key)
         maybe_value = self._maybe_values.get(info.key, None)
         if maybe_value is None:
-            maybe_value = tl.App.localGetEx(self.account, self.app_id, info.tbytes)
+            maybe_value = tl.App.localGetEx(
+                self.account, self.app_id, tl.Bytes(info.key)
+            )
             self._maybe_values[info.key] = maybe_value
         return maybe_value
 
@@ -299,12 +314,12 @@ class StateLocal(StateLocalExternal):
     def get(self, key: Key) -> tl.Expr:
         """Build the expression to get the state value at `key`"""
         info = self.key_to_info(key)
-        return tl.App.localGet(self.account, info.tbytes)
+        return tl.App.localGet(self.account, tl.Bytes(info.key))
 
-    def set(self, key: Key, value: TValue) -> tl.Expr:
+    def set(self, key: Key, value: TealValue) -> tl.Expr:
         """Build the expression to set the state value at `key`"""
         info = self.key_to_info(key)
-        return tl.App.localPut(self.account, info.tbytes, value)
+        return tl.App.localPut(self.account, tl.Bytes(info.key), value)
 
     def constructor(self) -> tl.Expr:
         """
@@ -313,7 +328,7 @@ class StateLocal(StateLocalExternal):
         """
         return tl.Seq(
             *[
-                tl.App.localPut(self.account, i.tbytes, i.default)
+                tl.App.localPut(self.account, tl.Bytes(i.key), i.default)
                 for i in self.key_infos()
                 if i.default
             ]
