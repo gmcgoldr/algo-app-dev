@@ -12,6 +12,10 @@ from algosdk.future.transaction import (
     SuggestedParams,
 )
 from algosdk.v2client.algod import AlgodClient
+from algosdk.v2client.models.application import Application
+from algosdk.v2client.models.application_params import ApplicationParams
+from algosdk.v2client.models.application_state_schema import ApplicationStateSchema
+from algosdk.v2client.models.teal_key_value import TealKeyValue
 
 from algoappdev.utils import AlgoAppDevError
 
@@ -471,7 +475,7 @@ class AppBuilder(NamedTuple):
 
         return tl.Cond(*branches)
 
-    def clear_exrp(self) -> tl.Expr:
+    def clear_expr(self) -> tl.Expr:
         return self.on_clear if self.on_clear is not None else tl.Return(ONE)
 
     def global_schema(self) -> StateSchema:
@@ -508,7 +512,7 @@ class AppBuilder(NamedTuple):
             # the program to handle app state changes
             approval_program=compile_source(client, compile_expr(self.approval_expr())),
             # the program to run when an account forces an opt-out
-            clear_program=compile_source(client, compile_expr(self.clear_exrp())),
+            clear_program=compile_source(client, compile_expr(self.clear_expr())),
             # the amount of storage used by the app
             global_schema=self.global_schema(),
             local_schema=self.local_schema(),
@@ -540,5 +544,43 @@ class AppBuilder(NamedTuple):
             sp=params,
             index=app_id,
             approval_program=compile_source(client, compile_expr(self.approval_expr())),
-            clear_program=compile_source(client, compile_expr(self.clear_exrp())),
+            clear_program=compile_source(client, compile_expr(self.clear_expr())),
+        )
+
+    def build_application(
+        self,
+        client: AlgodClient,
+        app_idx: int,
+        creator: str = None,
+        global_state: List[TealKeyValue] = None,
+    ) -> Application:
+        """
+        Build the `Application` object describing this application.
+
+        This is used to interface with the dryrun APIs.
+        """
+        global_schema = self.global_schema()
+        local_schema = self.local_schema()
+        global_state_schema = ApplicationStateSchema(
+            num_uint=global_schema.num_uints,
+            num_byte_slice=global_schema.num_byte_slices,
+        )
+        local_state_schema = ApplicationStateSchema(
+            num_uint=local_schema.num_uints,
+            num_byte_slice=local_schema.num_byte_slices,
+        )
+        return Application(
+            id=app_idx,
+            params=ApplicationParams(
+                creator=creator,
+                approval_program=compile_source(
+                    client, compile_expr(self.approval_expr())
+                ),
+                clear_state_program=compile_source(
+                    client, compile_expr(self.clear_expr())
+                ),
+                global_state_schema=global_state_schema,
+                local_state_schema=local_state_schema,
+                global_state=global_state,
+            ),
         )

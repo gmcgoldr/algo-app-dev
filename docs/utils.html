@@ -82,7 +82,15 @@ def to_value(value: Union[int, bytes]) -&gt; TealValue:
 
 def to_key_value(key: bytes, value: Union[int, bytes]) -&gt; TealKeyValue:
     key = base64.b64encode(key).decode(&#34;ascii&#34;)
-    return TealKeyValue(key, to_value(value))</code></pre>
+    return TealKeyValue(key, to_value(value))
+
+
+def idx_to_address(idx: int) -&gt; str:
+    return ag.encoding.encode_address(idx.to_bytes(ag.constants.key_len_bytes, &#34;big&#34;))
+
+
+def address_to_idx(address: str) -&gt; int:
+    return int.from_bytes(ag.encoding.decode_address(address)[-8:], &#34;big&#34;)</code></pre>
 </details>
 </section>
 <section>
@@ -92,6 +100,19 @@ def to_key_value(key: bytes, value: Union[int, bytes]) -&gt; TealKeyValue:
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="algoappdev.utils.address_to_idx"><code class="name flex">
+<span>def <span class="ident">address_to_idx</span></span>(<span>address: str) ‑> int</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def address_to_idx(address: str) -&gt; int:
+    return int.from_bytes(ag.encoding.decode_address(address)[-8:], &#34;big&#34;)</code></pre>
+</details>
+</dd>
 <dt id="algoappdev.utils.from_value"><code class="name flex">
 <span>def <span class="ident">from_value</span></span>(<span>value: algosdk.v2client.models.teal_value.TealValue) ‑> Union[int, bytes]</span>
 </code></dt>
@@ -110,6 +131,19 @@ def to_key_value(key: bytes, value: Union[int, bytes]) -&gt; TealKeyValue:
     elif value.get(&#34;type&#34;, None) == 2:
         value = value.get(&#34;uint&#34;, None)
     return value</code></pre>
+</details>
+</dd>
+<dt id="algoappdev.utils.idx_to_address"><code class="name flex">
+<span>def <span class="ident">idx_to_address</span></span>(<span>idx: int) ‑> str</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def idx_to_address(idx: int) -&gt; str:
+    return ag.encoding.encode_address(idx.to_bytes(ag.constants.key_len_bytes, &#34;big&#34;))</code></pre>
 </details>
 </dd>
 <dt id="algoappdev.utils.to_key_value"><code class="name flex">
@@ -277,7 +311,9 @@ def from_result(result: Dict) -&gt; &#34;AppMeta&#34;:
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="algoappdev.utils.address_to_idx" href="#algoappdev.utils.address_to_idx">address_to_idx</a></code></li>
 <li><code><a title="algoappdev.utils.from_value" href="#algoappdev.utils.from_value">from_value</a></code></li>
+<li><code><a title="algoappdev.utils.idx_to_address" href="#algoappdev.utils.idx_to_address">idx_to_address</a></code></li>
 <li><code><a title="algoappdev.utils.to_key_value" href="#algoappdev.utils.to_key_value">to_key_value</a></code></li>
 <li><code><a title="algoappdev.utils.to_value" href="#algoappdev.utils.to_value">to_value</a></code></li>
 </ul>

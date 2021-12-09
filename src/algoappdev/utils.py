@@ -55,3 +55,11 @@ def to_value(value: Union[int, bytes]) -> TealValue:
 def to_key_value(key: bytes, value: Union[int, bytes]) -> TealKeyValue:
     key = base64.b64encode(key).decode("ascii")
     return TealKeyValue(key, to_value(value))
+
+
+def idx_to_address(idx: int) -> str:
+    return ag.encoding.encode_address(idx.to_bytes(ag.constants.key_len_bytes, "big"))
+
+
+def address_to_idx(address: str) -> int:
+    return int.from_bytes(ag.encoding.decode_address(address)[-8:], "big")

@@ -41,6 +41,10 @@ from algosdk.future.transaction import (
     SuggestedParams,
 )
 from algosdk.v2client.algod import AlgodClient
+from algosdk.v2client.models.application import Application
+from algosdk.v2client.models.application_params import ApplicationParams
+from algosdk.v2client.models.application_state_schema import ApplicationStateSchema
+from algosdk.v2client.models.teal_key_value import TealKeyValue
 
 from algoappdev.utils import AlgoAppDevError
 
@@ -500,7 +504,7 @@ class AppBuilder(NamedTuple):
 
         return tl.Cond(*branches)
 
-    def clear_exrp(self) -&gt; tl.Expr:
+    def clear_expr(self) -&gt; tl.Expr:
         return self.on_clear if self.on_clear is not None else tl.Return(ONE)
 
     def global_schema(self) -&gt; StateSchema:
@@ -537,7 +541,7 @@ class AppBuilder(NamedTuple):
             # the program to handle app state changes
             approval_program=compile_source(client, compile_expr(self.approval_expr())),
             # the program to run when an account forces an opt-out
-            clear_program=compile_source(client, compile_expr(self.clear_exrp())),
+            clear_program=compile_source(client, compile_expr(self.clear_expr())),
             # the amount of storage used by the app
             global_schema=self.global_schema(),
             local_schema=self.local_schema(),
@@ -569,7 +573,45 @@ class AppBuilder(NamedTuple):
             sp=params,
             index=app_id,
             approval_program=compile_source(client, compile_expr(self.approval_expr())),
-            clear_program=compile_source(client, compile_expr(self.clear_exrp())),
+            clear_program=compile_source(client, compile_expr(self.clear_expr())),
+        )
+
+    def build_application(
+        self,
+        client: AlgodClient,
+        app_idx: int,
+        creator: str = None,
+        global_state: List[TealKeyValue] = None,
+    ) -&gt; Application:
+        &#34;&#34;&#34;
+        Build the `Application` object describing this application.
+
+        This is used to interface with the dryrun APIs.
+        &#34;&#34;&#34;
+        global_schema = self.global_schema()
+        local_schema = self.local_schema()
+        global_state_schema = ApplicationStateSchema(
+            num_uint=global_schema.num_uints,
+            num_byte_slice=global_schema.num_byte_slices,
+        )
+        local_state_schema = ApplicationStateSchema(
+            num_uint=local_schema.num_uints,
+            num_byte_slice=local_schema.num_byte_slices,
+        )
+        return Application(
+            id=app_idx,
+            params=ApplicationParams(
+                creator=creator,
+                approval_program=compile_source(
+                    client, compile_expr(self.approval_expr())
+                ),
+                clear_state_program=compile_source(
+                    client, compile_expr(self.clear_expr())
+                ),
+                global_state_schema=global_state_schema,
+                local_state_schema=local_state_schema,
+                global_state=global_state,
+            ),
         )</code></pre>
 </details>
 </section>
@@ -837,7 +879,7 @@ value is zero.</li>
 
         return tl.Cond(*branches)
 
-    def clear_exrp(self) -&gt; tl.Expr:
+    def clear_expr(self) -&gt; tl.Expr:
         return self.on_clear if self.on_clear is not None else tl.Return(ONE)
 
     def global_schema(self) -&gt; StateSchema:
@@ -874,7 +916,7 @@ value is zero.</li>
             # the program to handle app state changes
             approval_program=compile_source(client, compile_expr(self.approval_expr())),
             # the program to run when an account forces an opt-out
-            clear_program=compile_source(client, compile_expr(self.clear_exrp())),
+            clear_program=compile_source(client, compile_expr(self.clear_expr())),
             # the amount of storage used by the app
             global_schema=self.global_schema(),
             local_schema=self.local_schema(),
@@ -906,7 +948,45 @@ value is zero.</li>
             sp=params,
             index=app_id,
             approval_program=compile_source(client, compile_expr(self.approval_expr())),
-            clear_program=compile_source(client, compile_expr(self.clear_exrp())),
+            clear_program=compile_source(client, compile_expr(self.clear_expr())),
+        )
+
+    def build_application(
+        self,
+        client: AlgodClient,
+        app_idx: int,
+        creator: str = None,
+        global_state: List[TealKeyValue] = None,
+    ) -&gt; Application:
+        &#34;&#34;&#34;
+        Build the `Application` object describing this application.
+
+        This is used to interface with the dryrun APIs.
+        &#34;&#34;&#34;
+        global_schema = self.global_schema()
+        local_schema = self.local_schema()
+        global_state_schema = ApplicationStateSchema(
+            num_uint=global_schema.num_uints,
+            num_byte_slice=global_schema.num_byte_slices,
+        )
+        local_state_schema = ApplicationStateSchema(
+            num_uint=local_schema.num_uints,
+            num_byte_slice=local_schema.num_byte_slices,
+        )
+        return Application(
+            id=app_idx,
+            params=ApplicationParams(
+                creator=creator,
+                approval_program=compile_source(
+                    client, compile_expr(self.approval_expr())
+                ),
+                clear_state_program=compile_source(
+                    client, compile_expr(self.clear_expr())
+                ),
+                global_state_schema=global_state_schema,
+                local_state_schema=local_state_schema,
+                global_state=global_state,
+            ),
         )</code></pre>
 </details>
 <h3>Ancestors</h3>
@@ -1049,8 +1129,57 @@ joining them in a single branching control flow.</p></div>
     return tl.Cond(*branches)</code></pre>
 </details>
 </dd>
-<dt id="algoappdev.apps.AppBuilder.clear_exrp"><code class="name flex">
-<span>def <span class="ident">clear_exrp</span></span>(<span>self) ‑> pyteal.Expr</span>
+<dt id="algoappdev.apps.AppBuilder.build_application"><code class="name flex">
+<span>def <span class="ident">build_application</span></span>(<span>self, client: algosdk.v2client.algod.AlgodClient, app_idx: int, creator: str = None, global_state: List[algosdk.v2client.models.teal_key_value.TealKeyValue] = None) ‑> algosdk.v2client.models.application.Application</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Build the <code>Application</code> object describing this application.</p>
+<p>This is used to interface with the dryrun APIs.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build_application(
+    self,
+    client: AlgodClient,
+    app_idx: int,
+    creator: str = None,
+    global_state: List[TealKeyValue] = None,
+) -&gt; Application:
+    &#34;&#34;&#34;
+    Build the `Application` object describing this application.
+
+    This is used to interface with the dryrun APIs.
+    &#34;&#34;&#34;
+    global_schema = self.global_schema()
+    local_schema = self.local_schema()
+    global_state_schema = ApplicationStateSchema(
+        num_uint=global_schema.num_uints,
+        num_byte_slice=global_schema.num_byte_slices,
+    )
+    local_state_schema = ApplicationStateSchema(
+        num_uint=local_schema.num_uints,
+        num_byte_slice=local_schema.num_byte_slices,
+    )
+    return Application(
+        id=app_idx,
+        params=ApplicationParams(
+            creator=creator,
+            approval_program=compile_source(
+                client, compile_expr(self.approval_expr())
+            ),
+            clear_state_program=compile_source(
+                client, compile_expr(self.clear_expr())
+            ),
+            global_state_schema=global_state_schema,
+            local_state_schema=local_state_schema,
+            global_state=global_state,
+        ),
+    )</code></pre>
+</details>
+</dd>
+<dt id="algoappdev.apps.AppBuilder.clear_expr"><code class="name flex">
+<span>def <span class="ident">clear_expr</span></span>(<span>self) ‑> pyteal.Expr</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1058,7 +1187,7 @@ joining them in a single branching control flow.</p></div>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def clear_exrp(self) -&gt; tl.Expr:
+<pre><code class="python">def clear_expr(self) -&gt; tl.Expr:
     return self.on_clear if self.on_clear is not None else tl.Return(ONE)</code></pre>
 </details>
 </dd>
@@ -1103,7 +1232,7 @@ for compiling and to send the transaction</dd>
         # the program to handle app state changes
         approval_program=compile_source(client, compile_expr(self.approval_expr())),
         # the program to run when an account forces an opt-out
-        clear_program=compile_source(client, compile_expr(self.clear_exrp())),
+        clear_program=compile_source(client, compile_expr(self.clear_expr())),
         # the amount of storage used by the app
         global_schema=self.global_schema(),
         local_schema=self.local_schema(),
@@ -1191,7 +1320,7 @@ for compiling and to send the transaction</dd>
         sp=params,
         index=app_id,
         approval_program=compile_source(client, compile_expr(self.approval_expr())),
-        clear_program=compile_source(client, compile_expr(self.clear_exrp())),
+        clear_program=compile_source(client, compile_expr(self.clear_expr())),
     )</code></pre>
 </details>
 </dd>
@@ -2036,7 +2165,8 @@ accessed</dd>
 <h4><code><a title="algoappdev.apps.AppBuilder" href="#algoappdev.apps.AppBuilder">AppBuilder</a></code></h4>
 <ul class="two-column">
 <li><code><a title="algoappdev.apps.AppBuilder.approval_expr" href="#algoappdev.apps.AppBuilder.approval_expr">approval_expr</a></code></li>
-<li><code><a title="algoappdev.apps.AppBuilder.clear_exrp" href="#algoappdev.apps.AppBuilder.clear_exrp">clear_exrp</a></code></li>
+<li><code><a title="algoappdev.apps.AppBuilder.build_application" href="#algoappdev.apps.AppBuilder.build_application">build_application</a></code></li>
+<li><code><a title="algoappdev.apps.AppBuilder.clear_expr" href="#algoappdev.apps.AppBuilder.clear_expr">clear_expr</a></code></li>
 <li><code><a title="algoappdev.apps.AppBuilder.create_txn" href="#algoappdev.apps.AppBuilder.create_txn">create_txn</a></code></li>
 <li><code><a title="algoappdev.apps.AppBuilder.global_schema" href="#algoappdev.apps.AppBuilder.global_schema">global_schema</a></code></li>
 <li><code><a title="algoappdev.apps.AppBuilder.global_state" href="#algoappdev.apps.AppBuilder.global_state">global_state</a></code></li>

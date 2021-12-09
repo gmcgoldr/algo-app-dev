@@ -25,3 +25,14 @@ def test_to_key_value_encodes_key():
     assert utils.to_key_value(b"a", 1) == TealKeyValue(
         key="YQ==", value=TealValue(type=2, bytes=None, uint=1)
     )
+
+
+def test_idx_to_address():
+    assert (
+        utils.idx_to_address(1)
+        == "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVIOOBQA"
+    )
+
+
+def test_address_to_idx():
+    assert utils.address_to_idx(utils.idx_to_address(1)) == 1

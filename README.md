@@ -65,10 +65,22 @@ Here is an example of a very simple app with a global counter.
 Every time a (no-op) call is made with the argument "count", it increments the counter.
 
 ```python
-# define the state: a single global counter which defaults to 0
-state = apps.StateGlobal(
-    [apps.State.KeyInfo(key="counter", type=tl.Int, default=tl.Int(0))]
+import pyteal as tl
+from algosdk.util import algos_to_microalgos
+from algoappdev import apps, clients, dryruns, transactions, utils
+
+# build the clients
+algod_client = clients.build_algod_local_client(NODE_PATH)
+kmd_client = clients.build_kmd_local_client(NODE_PATH)
+# fund an account on the private net which can be used to transact
+funded_account, txid = transactions.fund_from_genesis(
+    algod_client, kmd_client, algos_to_microalgos(1)
 )
+# wait for the funding to go through
+transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
+
+# define the state: a single global counter which defaults to 0
+state = apps.StateGlobal([apps.State.KeyInfo("counter", tl.Int, tl.Int(0))])
 # define the logic: invoking with the argument "count" increments the counter
 app_builder = apps.AppBuilder(
     invocations={
@@ -79,20 +91,22 @@ app_builder = apps.AppBuilder(
     },
     global_state=state,
 )
-# build the transaction which can be sent to create the app
+
+# deploy the application
 txn = app_builder.create_txn(
     algod_client, funded_account.address, algod_client.suggested_params()
 )
-# send the transaction and get back out the app's id and address
 txid = algod_client.send_transaction(txn.sign(funded_account.key))
+# the app id and address can be derived from the transaction output
 txn_info = transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-app_meta = AppMeta.from_result(txn_info)
+app_meta = utils.AppMeta.from_result(txn_info)
+print(app_meta)
 ```
 
 The resulting `app_meta` object:
 
 ```python
-AppMeta(app_id=2, address='...')
+AppMeta(app_id=1, address='...')
 ```
 
 ### dryruns
@@ -103,37 +117,36 @@ and parse the results.
 Here is how the `dryruns` utilities could be used to test the contract:
 
 ```python
-txn = ApplicationNoOpTxn(
-    funded_account.address,
-    algod_client.suggested_params(),
-    app_meta.app_id,
-    ["count"],
-)
+# build a dryrun request containing the entire state needed to call the app
 result = algod_client.dryrun(
-    dr.builder_run(stxn=txn.sign(funded_account.key), app_builder=app_builder)
+    dryruns.AppCallCtx()
+    # use the app's programs and schema
+    .with_app(app_builder.build_application(algod_client, 1))
+    # add a transaction calling the app with the given arg
+    .with_txn_call(args=[b"count"])
+    .build_request()
 )
-for item in dr.get_trace(result):
+for item in dryruns.get_trace(result):
     print(item)
-for delta in dr.get_global_deltas(result):
+for delta in dryruns.get_global_deltas(result):
     print(delta)
 ```
 
-The end of the stack trace might look something like:
+The last few lines of the stack trace should resemble:
 
 ```
-...
-app_global_get → [b'counter', 0]
-intc_0 // 1 → [b'counter', 0, 1]
-+ → [b'counter', 1]
-app_global_put → []
-intc_0 // 1 → [1]
-return → [1]
+55 :: app_global_get :: [b'counter'  , 0           ]
+56 :: intc_0 // 1    :: [b'counter'  , 0           , 1           ]
+57 :: +              :: [b'counter'  , 1           ]
+58 :: app_global_put :: []
+59 :: intc_0 // 1    :: [1           ]
+81 :: return         :: [1           ]
 ```
 
-And the only delta is:
+The resulting state delta:
 
 ```python
-KeyDelta(key=b'count', value=1)
+KeyDelta(key=b'counter', value=1)
 ```
 
 ## Testing
