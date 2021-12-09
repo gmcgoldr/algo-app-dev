@@ -66,17 +66,11 @@ Every time a (no-op) call is made with the argument "count", it increments the c
 ```python
 # define the state: a single global counter which defaults to 0
 state = apps.StateGlobal(
-    [
-        apps.State.KeyInfo(
-            key="counter",
-            ttype=tl.Int,
-            default=tl.Int(0),
-        ),
-    ]
+    [apps.State.KeyInfo(key="counter", type=tl.Int, default=tl.Int(0))]
 )
 # define the logic: invoking with the argument "count" increments the counter
 app_builder = apps.AppBuilder(
-    invokations={
+    invocations={
         "count": tl.Seq(
             state.set("counter", state.get("counter") + tl.Int(1)),
             tl.Return(tl.Int(1)),
