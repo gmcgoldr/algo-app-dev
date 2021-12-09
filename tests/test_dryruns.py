@@ -7,6 +7,15 @@ from algoappdev import apps, dryruns
 from algoappdev.utils import AccountMeta, to_key_value
 
 
+class _AnyValue:
+    def __eq__(self, other) -> bool:
+        return other is not None
+
+
+AnyValue = _AnyValue()
+del _AnyValue
+
+
 def test_txn_source_run_executes(
     algod_client: AlgodClient, funded_account: AccountMeta
 ):
@@ -22,7 +31,7 @@ def test_txn_source_run_executes(
     )
     dryruns.check_err(result)
     assert dryruns.get_trace(result)[-1] == dryruns.TraceItem(
-        source="return", stack=[1]
+        source="return", stack=[1], program_counter=AnyValue
     )
 
 
@@ -64,7 +73,9 @@ def test_txn_buider_run_passes_global_state(
     )
     dryruns.check_err(result)
     # ensure the global value was retrieved
-    assert dryruns.TraceItem("app_global_get", [123]) in dryruns.get_trace(result)
+    assert dryruns.TraceItem("app_global_get", [123], AnyValue) in dryruns.get_trace(
+        result
+    )
     assert dryruns.get_messages(result)[:2] == ["ApprovalProgram", "PASS"]
 
 
@@ -95,7 +106,9 @@ def test_txn_buider_run_passes_local_state(
     )
     dryruns.check_err(result)
     # ensure the comparison was carried out
-    assert dryruns.TraceItem("app_local_get", [234]) in dryruns.get_trace(result)
+    assert dryruns.TraceItem("app_local_get", [234], AnyValue) in dryruns.get_trace(
+        result
+    )
     assert dryruns.get_messages(result)[:2] == ["ApprovalProgram", "PASS"]
 
 

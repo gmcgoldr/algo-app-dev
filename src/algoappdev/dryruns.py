@@ -34,10 +34,19 @@ class AppCallContext(NamedTuple):
 class TraceItem(NamedTuple):
     source: str
     stack: List[Union[int, bytes]]
+    program_counter: int
 
     def __str__(self) -> str:
-        stack = ", ".join(map(str, self.stack))
-        return f"{self.source} → [{stack}]"
+        # max 12 char stack value
+        stack = [str(v) for v in self.stack]
+        stack = [(v[:7] + ".." + v[-3:] if len(v) > 12 else v) for v in stack]
+        stack = [f"{v:12s}" for v in stack]
+        stack = ", ".join(stack)
+        # max 40 char source code
+        source = self.source
+        if len(source) > 40:
+            source = source[:-37] + "..."
+        return f"{self.program_counter:5d} :: {source:40s} :: [{stack}]"
 
 
 class KeyDelta(NamedTuple):
@@ -303,43 +312,55 @@ def check_err(result: Dict):
         raise AlgoAppDevError(f"dryrun error: {message}")
 
 
-def get_messages(result: Dict) -> List[str]:
-    return [m for t in result.get("txns", []) for m in t.get("app-call-messages", [])]
+def get_messages(result: Dict, txn_idx: int = 0) -> List[str]:
+    try:
+        txn = result.get("txns", [])[txn_idx]
+    except IndexError:
+        return []
+    return txn.get("app-call-messages", [])
 
 
-def get_trace(result: Dict) -> List[TraceItem]:
-    for txn in result.get("txns", []):
-        lines = txn.get("disassembly", None)
-        trace = txn.get("app-call-trace", None)
-        if lines is None or trace is None:
-            continue
-        break
-    else:
+def get_trace(result: Dict, txn_idx: int = 0) -> List[TraceItem]:
+    try:
+        txn = result.get("txns", [])[txn_idx]
+    except IndexError:
         return []
 
     trace_items = []
+
+    lines = txn.get("disassembly", None)
+    trace = txn.get("app-call-trace", None)
+    if lines is None or trace is None:
+        return []
+
     for item in trace:
         line = lines[item["line"] - 1]
         stack = [from_value(i) for i in item["stack"]]
-        trace_items.append(TraceItem(line, stack))
+        trace_items.append(TraceItem(line, stack, item["pc"]))
 
     return trace_items
 
 
-def get_global_deltas(result: Dict) -> List[KeyDelta]:
-    deltas = []
-    for txn in result.get("txns", []):
-        deltas += txn.get("global-delta", [])
-    return [KeyDelta.from_result(d) for d in deltas]
+def get_global_deltas(result: Dict, txn_idx: int = 0) -> List[KeyDelta]:
+    try:
+        txn = result.get("txns", [])[txn_idx]
+    except IndexError:
+        return []
+    return [KeyDelta.from_result(d) for d in txn.get("global-delta")]
 
 
-def get_local_deltas(result: Dict) -> Dict[str, List[KeyDelta]]:
+def get_local_deltas(result: Dict, txn_idx: int = 0) -> Dict[str, List[KeyDelta]]:
+    try:
+        txn = result.get("txns", [])[txn_idx]
+    except IndexError:
+        return []
+
     local_deltas = defaultdict(list)
-    for txn in result.get("txns", []):
-        for local_delta in txn.get("local-deltas", []):
-            address = local_delta["address"]
-            deltas = local_delta["delta"]
-            if address is None or deltas is None:
-                continue
-            local_deltas[address] += [KeyDelta.from_result(d) for d in deltas]
+    for local_delta in txn.get("local-deltas", []):
+        address = local_delta["address"]
+        deltas = local_delta["delta"]
+        if address is None or deltas is None:
+            continue
+        local_deltas[address] += [KeyDelta.from_result(d) for d in deltas]
+
     return dict(local_deltas)
