@@ -26,9 +26,9 @@ def test_get_app_global_key_returns_value():
             ]
         }
     }
-    assert clients.get_app_global_key(info, key="a") == b"b"
-    assert clients.get_app_global_key(info, key="") is None
-    assert clients.get_app_global_key(info, key="b") is None
+    assert clients.get_app_global_key(info, key=b"a") == b"b"
+    assert clients.get_app_global_key(info, key=b"") is None
+    assert clients.get_app_global_key(info, key=b"b") is None
 
 
 def test_get_app_local_key_returns_value():
@@ -46,7 +46,7 @@ def test_get_app_local_key_returns_value():
             }
         ]
     }
-    assert clients.get_app_local_key(info, 1, key="a") == b"c"
-    assert clients.get_app_local_key(info, 2, key="a") is None
-    assert clients.get_app_local_key(info, 1, key="") is None
-    assert clients.get_app_local_key(info, 1, key="b") is None
+    assert clients.get_app_local_key(info, 1, key=b"a") == b"c"
+    assert clients.get_app_local_key(info, 2, key=b"a") is None
+    assert clients.get_app_local_key(info, 1, key=b"") is None
+    assert clients.get_app_local_key(info, 1, key=b"b") is None

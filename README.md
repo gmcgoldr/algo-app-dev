@@ -1,6 +1,7 @@
 # Algo App Dev
 
 Utilities to help in the development of PyTeal contracts for Algorand.
+Documentation: <https://gmcgoldr.github.io/algo-app-dev/>.
 
 ## Installation
 

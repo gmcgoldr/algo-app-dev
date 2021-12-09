@@ -78,11 +78,11 @@ def build_kmd_local_client(data_dir: Path, version: str = &#34;0.5&#34;) -&gt; K
     return kmd_client
 
 
-def get_app_global_key(app_state: Dict, key: str) -&gt; Union[int, bytes]:
+def get_app_global_key(app_state: Dict, key: bytes) -&gt; Union[int, bytes]:
     &#34;&#34;&#34;
     Return the value for the given `key` in `app_id`&#39;s global data.
     &#34;&#34;&#34;
-    key = base64.b64encode(key.encode(&#34;utf8&#34;)).decode(&#34;ascii&#34;)
+    key = base64.b64encode(key).decode(&#34;ascii&#34;)
     for key_state in app_state.get(&#34;params&#34;, {}).get(&#34;global-state&#34;, []):
         if key_state.get(&#34;key&#34;, None) != key:
             continue
@@ -90,12 +90,14 @@ def get_app_global_key(app_state: Dict, key: str) -&gt; Union[int, bytes]:
     return None
 
 
-def get_app_local_key(account_state: Dict, app_id: int, key: str) -&gt; Union[int, bytes]:
+def get_app_local_key(
+    account_state: Dict, app_id: int, key: bytes
+) -&gt; Union[int, bytes]:
     &#34;&#34;&#34;
     Return the value for the given `key` in `app_id`&#39;s local data for account
     `address`.
     &#34;&#34;&#34;
-    key = base64.b64encode(key.encode(&#34;utf8&#34;)).decode(&#34;ascii&#34;)
+    key = base64.b64encode(key).decode(&#34;ascii&#34;)
     for app_state in account_state.get(&#34;apps-local-state&#34;, []):
         if app_state.get(&#34;id&#34;, None) != app_id:
             continue
@@ -184,7 +186,7 @@ congifugartion network configruation is at <code>data_dir</code>.</p>
 </details>
 </dd>
 <dt id="algoappdev.clients.get_app_global_key"><code class="name flex">
-<span>def <span class="ident">get_app_global_key</span></span>(<span>app_state: Dict[~KT, ~VT], key: str) ‑> Union[int, bytes]</span>
+<span>def <span class="ident">get_app_global_key</span></span>(<span>app_state: Dict[~KT, ~VT], key: bytes) ‑> Union[int, bytes]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Return the value for the given <code>key</code> in <code>app_id</code>'s global data.</p></div>
@@ -192,11 +194,11 @@ congifugartion network configruation is at <code>data_dir</code>.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_app_global_key(app_state: Dict, key: str) -&gt; Union[int, bytes]:
+<pre><code class="python">def get_app_global_key(app_state: Dict, key: bytes) -&gt; Union[int, bytes]:
     &#34;&#34;&#34;
     Return the value for the given `key` in `app_id`&#39;s global data.
     &#34;&#34;&#34;
-    key = base64.b64encode(key.encode(&#34;utf8&#34;)).decode(&#34;ascii&#34;)
+    key = base64.b64encode(key).decode(&#34;ascii&#34;)
     for key_state in app_state.get(&#34;params&#34;, {}).get(&#34;global-state&#34;, []):
         if key_state.get(&#34;key&#34;, None) != key:
             continue
@@ -205,7 +207,7 @@ congifugartion network configruation is at <code>data_dir</code>.</p>
 </details>
 </dd>
 <dt id="algoappdev.clients.get_app_local_key"><code class="name flex">
-<span>def <span class="ident">get_app_local_key</span></span>(<span>account_state: Dict[~KT, ~VT], app_id: int, key: str) ‑> Union[int, bytes]</span>
+<span>def <span class="ident">get_app_local_key</span></span>(<span>account_state: Dict[~KT, ~VT], app_id: int, key: bytes) ‑> Union[int, bytes]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Return the value for the given <code>key</code> in <code>app_id</code>'s local data for account
@@ -214,12 +216,14 @@ congifugartion network configruation is at <code>data_dir</code>.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_app_local_key(account_state: Dict, app_id: int, key: str) -&gt; Union[int, bytes]:
+<pre><code class="python">def get_app_local_key(
+    account_state: Dict, app_id: int, key: bytes
+) -&gt; Union[int, bytes]:
     &#34;&#34;&#34;
     Return the value for the given `key` in `app_id`&#39;s local data for account
     `address`.
     &#34;&#34;&#34;
-    key = base64.b64encode(key.encode(&#34;utf8&#34;)).decode(&#34;ascii&#34;)
+    key = base64.b64encode(key).decode(&#34;ascii&#34;)
     for app_state in account_state.get(&#34;apps-local-state&#34;, []):
         if app_state.get(&#34;id&#34;, None) != app_id:
             continue

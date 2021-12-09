@@ -49,11 +49,11 @@ def build_kmd_local_client(data_dir: Path, version: str = "0.5") -> KMDClient:
     return kmd_client
 
 
-def get_app_global_key(app_state: Dict, key: str) -> Union[int, bytes]:
+def get_app_global_key(app_state: Dict, key: bytes) -> Union[int, bytes]:
     """
     Return the value for the given `key` in `app_id`'s global data.
     """
-    key = base64.b64encode(key.encode("utf8")).decode("ascii")
+    key = base64.b64encode(key).decode("ascii")
     for key_state in app_state.get("params", {}).get("global-state", []):
         if key_state.get("key", None) != key:
             continue
@@ -61,12 +61,14 @@ def get_app_global_key(app_state: Dict, key: str) -> Union[int, bytes]:
     return None
 
 
-def get_app_local_key(account_state: Dict, app_id: int, key: str) -> Union[int, bytes]:
+def get_app_local_key(
+    account_state: Dict, app_id: int, key: bytes
+) -> Union[int, bytes]:
     """
     Return the value for the given `key` in `app_id`'s local data for account
     `address`.
     """
-    key = base64.b64encode(key.encode("utf8")).decode("ascii")
+    key = base64.b64encode(key).decode("ascii")
     for app_state in account_state.get("apps-local-state", []):
         if app_state.get("id", None) != app_id:
             continue

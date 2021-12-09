@@ -98,7 +98,7 @@ class State:
         self._key_to_info = {i.key: i for i in infos}
         self._maybe_values: Dict[bytes, tl.MaybeValue] = {}
 
-    def key_to_info(self, key: Key):
+    def key_info(self, key: Key):
         return self._key_to_info[State.KeyInfo.as_bytes(key)]
 
     def key_infos(self) -> List[KeyInfo]:
@@ -168,7 +168,7 @@ class StateGlobalExternal(State):
         `MaybeValue` object must be cached if its value is to be accessed more
         than once, so it can remember which slot the value was stored in.
         """
-        info = self.key_to_info(key)
+        info = self.key_info(key)
         maybe_value = self._maybe_values.get(info.key, None)
         if maybe_value is None:
             maybe_value = tl.App.globalGetEx(self.app_id, tl.Bytes(info.key))
@@ -222,12 +222,12 @@ class StateGlobal(StateGlobalExternal):
 
     def get(self, key: Key) -> tl.Expr:
         """Build the expression to get the state value at `key`"""
-        info = self.key_to_info(key)
+        info = self.key_info(key)
         return tl.App.globalGet(tl.Bytes(info.key))
 
     def set(self, key: Key, value: TealValue) -> tl.Expr:
         """Build the expression to set the state value at `key`"""
-        info = self.key_to_info(key)
+        info = self.key_info(key)
         return tl.App.globalPut(tl.Bytes(info.key), value)
 
     def constructor(self) -> tl.Expr:
@@ -267,7 +267,7 @@ class StateLocalExternal(State):
 
         See `StateGlobalExternal.get_ex`.
         """
-        info = self.key_to_info(key)
+        info = self.key_info(key)
         maybe_value = self._maybe_values.get(info.key, None)
         if maybe_value is None:
             maybe_value = tl.App.localGetEx(
@@ -313,12 +313,12 @@ class StateLocal(StateLocalExternal):
 
     def get(self, key: Key) -> tl.Expr:
         """Build the expression to get the state value at `key`"""
-        info = self.key_to_info(key)
+        info = self.key_info(key)
         return tl.App.localGet(self.account, tl.Bytes(info.key))
 
     def set(self, key: Key, value: TealValue) -> tl.Expr:
         """Build the expression to set the state value at `key`"""
-        info = self.key_to_info(key)
+        info = self.key_info(key)
         return tl.App.localPut(self.account, tl.Bytes(info.key), value)
 
     def constructor(self) -> tl.Expr:
