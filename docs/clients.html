@@ -23,90 +23,6 @@
 </header>
 <section id="section-intro">
 <p>Utilities to connect to and interact with <code>algod</code> and <code>kmd</code> clients.</p>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">&#34;&#34;&#34;
-Utilities to connect to and interact with `algod` and `kmd` clients.
-&#34;&#34;&#34;
-
-import base64
-from contextlib import contextmanager
-from pathlib import Path
-from typing import Dict, Union
-
-from algosdk.kmd import KMDClient
-from algosdk.v2client.algod import AlgodClient
-
-from . import utils
-
-
-def build_algod_local_client(data_dir: Path) -&gt; AlgodClient:
-    &#34;&#34;&#34;
-    Build the `algod` client to interface with the local daemon whose
-    congifugartion network configruation is at `data_dir`.
-
-    Args:
-        data_dir: the path with the network data
-
-    Returns:
-        the client connected to the local algod daemon
-    &#34;&#34;&#34;
-    algod_address = (data_dir / &#34;algod.net&#34;).read_text().strip()
-    algod_token = (data_dir / &#34;algod.token&#34;).read_text().strip()
-    algod_client = AlgodClient(
-        algod_address=f&#34;http://{algod_address}&#34;, algod_token=algod_token
-    )
-    return algod_client
-
-
-def build_kmd_local_client(data_dir: Path, version: str = &#34;0.5&#34;) -&gt; KMDClient:
-    &#34;&#34;&#34;
-    Build the `kmd` client to interface with the local daemon whose
-    congifugartion network configruation is at `data_dir`.
-
-    Args:
-        data_dir: the path with the network data
-
-    Returns:
-        the client connected to the local kmd daemon
-    &#34;&#34;&#34;
-    kmd_address = (data_dir / f&#34;kmd-v{version}&#34; / &#34;kmd.net&#34;).read_text().strip()
-    kmd_token = (data_dir / f&#34;kmd-v{version}&#34; / &#34;kmd.token&#34;).read_text().strip()
-    kmd_client = KMDClient(kmd_address=f&#34;http://{kmd_address}&#34;, kmd_token=kmd_token)
-    return kmd_client
-
-
-def get_app_global_key(app_state: Dict, key: bytes) -&gt; Union[int, bytes]:
-    &#34;&#34;&#34;
-    Return the value for the given `key` in `app_id`&#39;s global data.
-    &#34;&#34;&#34;
-    key = base64.b64encode(key).decode(&#34;ascii&#34;)
-    for key_state in app_state.get(&#34;params&#34;, {}).get(&#34;global-state&#34;, []):
-        if key_state.get(&#34;key&#34;, None) != key:
-            continue
-        return utils.from_value(key_state.get(&#34;value&#34;, None))
-    return None
-
-
-def get_app_local_key(
-    account_state: Dict, app_id: int, key: bytes
-) -&gt; Union[int, bytes]:
-    &#34;&#34;&#34;
-    Return the value for the given `key` in `app_id`&#39;s local data for account
-    `address`.
-    &#34;&#34;&#34;
-    key = base64.b64encode(key).decode(&#34;ascii&#34;)
-    for app_state in account_state.get(&#34;apps-local-state&#34;, []):
-        if app_state.get(&#34;id&#34;, None) != app_id:
-            continue
-        for key_state in app_state.get(&#34;key-value&#34;, []):
-            if key_state.get(&#34;key&#34;, None) != key:
-                continue
-            return utils.from_value(key_state.get(&#34;value&#34;, None))
-    return None</code></pre>
-</details>
 </section>
 <section>
 </section>
@@ -120,7 +36,7 @@ def get_app_local_key(
 </code></dt>
 <dd>
 <div class="desc"><p>Build the <code>algod</code> client to interface with the local daemon whose
-congifugartion network configruation is at <code>data_dir</code>.</p>
+configuration is at <code>data_dir</code>.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>data_dir</code></strong></dt>
@@ -128,35 +44,13 @@ congifugartion network configruation is at <code>data_dir</code>.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>the client connected to the local algod daemon</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def build_algod_local_client(data_dir: Path) -&gt; AlgodClient:
-    &#34;&#34;&#34;
-    Build the `algod` client to interface with the local daemon whose
-    congifugartion network configruation is at `data_dir`.
-
-    Args:
-        data_dir: the path with the network data
-
-    Returns:
-        the client connected to the local algod daemon
-    &#34;&#34;&#34;
-    algod_address = (data_dir / &#34;algod.net&#34;).read_text().strip()
-    algod_token = (data_dir / &#34;algod.token&#34;).read_text().strip()
-    algod_client = AlgodClient(
-        algod_address=f&#34;http://{algod_address}&#34;, algod_token=algod_token
-    )
-    return algod_client</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.clients.build_kmd_local_client"><code class="name flex">
 <span>def <span class="ident">build_kmd_local_client</span></span>(<span>data_dir: pathlib.Path, version: str = '0.5') ‑> algosdk.kmd.KMDClient</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Build the <code>kmd</code> client to interface with the local daemon whose
-congifugartion network configruation is at <code>data_dir</code>.</p>
+configuration is at <code>data_dir</code>.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>data_dir</code></strong></dt>
@@ -164,47 +58,12 @@ congifugartion network configruation is at <code>data_dir</code>.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>the client connected to the local kmd daemon</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def build_kmd_local_client(data_dir: Path, version: str = &#34;0.5&#34;) -&gt; KMDClient:
-    &#34;&#34;&#34;
-    Build the `kmd` client to interface with the local daemon whose
-    congifugartion network configruation is at `data_dir`.
-
-    Args:
-        data_dir: the path with the network data
-
-    Returns:
-        the client connected to the local kmd daemon
-    &#34;&#34;&#34;
-    kmd_address = (data_dir / f&#34;kmd-v{version}&#34; / &#34;kmd.net&#34;).read_text().strip()
-    kmd_token = (data_dir / f&#34;kmd-v{version}&#34; / &#34;kmd.token&#34;).read_text().strip()
-    kmd_client = KMDClient(kmd_address=f&#34;http://{kmd_address}&#34;, kmd_token=kmd_token)
-    return kmd_client</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.clients.get_app_global_key"><code class="name flex">
 <span>def <span class="ident">get_app_global_key</span></span>(<span>app_state: Dict[~KT, ~VT], key: bytes) ‑> Union[int, bytes]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Return the value for the given <code>key</code> in <code>app_id</code>'s global data.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_app_global_key(app_state: Dict, key: bytes) -&gt; Union[int, bytes]:
-    &#34;&#34;&#34;
-    Return the value for the given `key` in `app_id`&#39;s global data.
-    &#34;&#34;&#34;
-    key = base64.b64encode(key).decode(&#34;ascii&#34;)
-    for key_state in app_state.get(&#34;params&#34;, {}).get(&#34;global-state&#34;, []):
-        if key_state.get(&#34;key&#34;, None) != key:
-            continue
-        return utils.from_value(key_state.get(&#34;value&#34;, None))
-    return None</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.clients.get_app_local_key"><code class="name flex">
 <span>def <span class="ident">get_app_local_key</span></span>(<span>account_state: Dict[~KT, ~VT], app_id: int, key: bytes) ‑> Union[int, bytes]</span>
@@ -212,27 +71,6 @@ congifugartion network configruation is at <code>data_dir</code>.</p>
 <dd>
 <div class="desc"><p>Return the value for the given <code>key</code> in <code>app_id</code>'s local data for account
 <code>address</code>.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_app_local_key(
-    account_state: Dict, app_id: int, key: bytes
-) -&gt; Union[int, bytes]:
-    &#34;&#34;&#34;
-    Return the value for the given `key` in `app_id`&#39;s local data for account
-    `address`.
-    &#34;&#34;&#34;
-    key = base64.b64encode(key).decode(&#34;ascii&#34;)
-    for app_state in account_state.get(&#34;apps-local-state&#34;, []):
-        if app_state.get(&#34;id&#34;, None) != app_id:
-            continue
-        for key_state in app_state.get(&#34;key-value&#34;, []):
-            if key_state.get(&#34;key&#34;, None) != key:
-                continue
-            return utils.from_value(key_state.get(&#34;value&#34;, None))
-    return None</code></pre>
-</details>
 </dd>
 </dl>
 </section>

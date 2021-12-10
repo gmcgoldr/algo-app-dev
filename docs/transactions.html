@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
 <title>algoappdev.transactions API documentation</title>
-<meta name="description" content="" />
+<meta name="description" content="Utilities for building and inspecting transactions." />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
 <link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
@@ -22,137 +22,7 @@
 <h1 class="title">Module <code>algoappdev.transactions</code></h1>
 </header>
 <section id="section-intro">
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">from typing import Dict, List, Tuple
-
-import algosdk as ag
-from algosdk.future import transaction
-from algosdk.future.transaction import PaymentTxn
-from algosdk.kmd import KMDClient
-from algosdk.v2client.algod import AlgodClient
-from algosdk.wallet import Wallet
-
-from .utils import AccountMeta
-
-
-def get_confirmed_transactions(
-    client: AlgodClient, transaction_ids: List[int], timeout_blocks: int
-) -&gt; Dict:
-    &#34;&#34;&#34;
-    Wait for the network to confirm some transactions and return their info.
-
-    Args:
-        client: the client
-        transaction_ids: list of transactions for which to retreive info
-        timeout_blocks: wait for this many blocks to confirm the transactions
-
-    Returns:
-        list of transaction info for confirmed transactions
-    &#34;&#34;&#34;
-    start_round = client.status()[&#34;last-round&#34;] + 1
-    current_round = start_round
-
-    # the transaction ids that are not yet confirmed
-    waiting_ids = set(transaction_ids)
-    # list of transaction info for confirmed transactions
-    infos = []
-
-    while current_round &lt; start_round + timeout_blocks:
-        for transaction_id in list(waiting_ids):
-            # NOTE: documentation suggests that transactions are &#34;remembered&#34;
-            # by a node for some time after confirmation, but doesn&#39;t specify
-            # how long
-            pending_txn = client.pending_transaction_info(transaction_id)
-            if pending_txn[&#34;pool-error&#34;]:
-                waiting_ids.remove(transaction_id)
-            elif pending_txn.get(&#34;confirmed-round&#34;, 0) &gt; 0:
-                infos.append(pending_txn)
-                waiting_ids.remove(transaction_id)
-        if not waiting_ids:
-            break
-        # wait until the end of this block
-        client.status_after_block(current_round)
-        current_round += 1
-
-    return infos
-
-
-def get_confirmed_transaction(
-    client: AlgodClient, transaction_id: int, timeout_blocks: int
-) -&gt; Dict:
-    &#34;&#34;&#34;
-    See `get_confirmed_transactions`, but for a single transaction id.
-    &#34;&#34;&#34;
-    confirmed = get_confirmed_transactions(client, [transaction_id], timeout_blocks)
-    if confirmed:
-        return confirmed[0]
-    else:
-        return None
-
-
-def fund_from_genesis(
-    algod_client: AlgodClient, kmd_client: KMDClient, amount: int
-) -&gt; Tuple[AccountMeta, str]:
-    &#34;&#34;&#34;
-    Create a new account and fund it from the account that received the gensis
-    funds.
-
-    Expects an unencrypted wallet &#34;unencrypted-default-wallet&#34; whose first key
-    is the address of the account with the genesis funds.
-
-    Args:
-        algod_client: client to send node commands to
-        kmd_client: client to use in signing the transaction
-        amount: the quantity of microAlgos to fund
-
-    Returns:
-        the funded account info, and funding transaction id
-    &#34;&#34;&#34;
-    wallet = Wallet(&#34;unencrypted-default-wallet&#34;, &#34;&#34;, kmd_client)
-    sender_address = wallet.list_keys()[0]
-
-    receiver = AccountMeta(*ag.account.generate_account())
-
-    # Transfer algos to the escrow account
-    params = algod_client.suggested_params()
-    params.fee = 0  # use the minimum network fee
-    txn = PaymentTxn(
-        sender=sender_address, sp=params, receiver=receiver.address, amt=amount
-    )
-    txn = wallet.sign_transaction(txn)
-    txid = algod_client.send_transaction(txn)
-
-    return receiver, txid
-
-
-def group_txns(*txns: transaction.Transaction) -&gt; List[transaction.Transaction]:
-    &#34;&#34;&#34;
-    Group multiple transactions.
-
-    Args:
-        txns: the transactions to group
-
-    Returns:
-        list of transactions, with the `group` memmber set
-    &#34;&#34;&#34;
-    gid = transaction.calculate_group_id(txns)
-    for txn in txns:
-        txn.group = gid
-    return txns
-
-
-def pad_lease_bytes(lease: bytes) -&gt; bytes:
-    &#34;&#34;&#34;
-    Given a string of bytes to use as a lease, right pad with 0s to get the
-    correct number of bytes.
-    &#34;&#34;&#34;
-    lease = lease[: ag.constants.LEASE_LENGTH]
-    lease = lease + (b&#34;\x00&#34; * max(0, ag.constants.LEASE_LENGTH - len(lease)))
-    return lease</code></pre>
-</details>
+<p>Utilities for building and inspecting transactions.</p>
 </section>
 <section>
 </section>
@@ -180,66 +50,12 @@ is the address of the account with the genesis funds.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>the funded account info, and funding transaction id</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def fund_from_genesis(
-    algod_client: AlgodClient, kmd_client: KMDClient, amount: int
-) -&gt; Tuple[AccountMeta, str]:
-    &#34;&#34;&#34;
-    Create a new account and fund it from the account that received the gensis
-    funds.
-
-    Expects an unencrypted wallet &#34;unencrypted-default-wallet&#34; whose first key
-    is the address of the account with the genesis funds.
-
-    Args:
-        algod_client: client to send node commands to
-        kmd_client: client to use in signing the transaction
-        amount: the quantity of microAlgos to fund
-
-    Returns:
-        the funded account info, and funding transaction id
-    &#34;&#34;&#34;
-    wallet = Wallet(&#34;unencrypted-default-wallet&#34;, &#34;&#34;, kmd_client)
-    sender_address = wallet.list_keys()[0]
-
-    receiver = AccountMeta(*ag.account.generate_account())
-
-    # Transfer algos to the escrow account
-    params = algod_client.suggested_params()
-    params.fee = 0  # use the minimum network fee
-    txn = PaymentTxn(
-        sender=sender_address, sp=params, receiver=receiver.address, amt=amount
-    )
-    txn = wallet.sign_transaction(txn)
-    txid = algod_client.send_transaction(txn)
-
-    return receiver, txid</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.transactions.get_confirmed_transaction"><code class="name flex">
 <span>def <span class="ident">get_confirmed_transaction</span></span>(<span>client: algosdk.v2client.algod.AlgodClient, transaction_id: int, timeout_blocks: int) ‑> Dict[~KT, ~VT]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>See <code><a title="algoappdev.transactions.get_confirmed_transactions" href="#algoappdev.transactions.get_confirmed_transactions">get_confirmed_transactions()</a></code>, but for a single transaction id.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_confirmed_transaction(
-    client: AlgodClient, transaction_id: int, timeout_blocks: int
-) -&gt; Dict:
-    &#34;&#34;&#34;
-    See `get_confirmed_transactions`, but for a single transaction id.
-    &#34;&#34;&#34;
-    confirmed = get_confirmed_transactions(client, [transaction_id], timeout_blocks)
-    if confirmed:
-        return confirmed[0]
-    else:
-        return None</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.transactions.get_confirmed_transactions"><code class="name flex">
 <span>def <span class="ident">get_confirmed_transactions</span></span>(<span>client: algosdk.v2client.algod.AlgodClient, transaction_ids: List[int], timeout_blocks: int) ‑> Dict[~KT, ~VT]</span>
@@ -257,83 +73,20 @@ is the address of the account with the genesis funds.</p>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>list of transaction info for confirmed transactions</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_confirmed_transactions(
-    client: AlgodClient, transaction_ids: List[int], timeout_blocks: int
-) -&gt; Dict:
-    &#34;&#34;&#34;
-    Wait for the network to confirm some transactions and return their info.
-
-    Args:
-        client: the client
-        transaction_ids: list of transactions for which to retreive info
-        timeout_blocks: wait for this many blocks to confirm the transactions
-
-    Returns:
-        list of transaction info for confirmed transactions
-    &#34;&#34;&#34;
-    start_round = client.status()[&#34;last-round&#34;] + 1
-    current_round = start_round
-
-    # the transaction ids that are not yet confirmed
-    waiting_ids = set(transaction_ids)
-    # list of transaction info for confirmed transactions
-    infos = []
-
-    while current_round &lt; start_round + timeout_blocks:
-        for transaction_id in list(waiting_ids):
-            # NOTE: documentation suggests that transactions are &#34;remembered&#34;
-            # by a node for some time after confirmation, but doesn&#39;t specify
-            # how long
-            pending_txn = client.pending_transaction_info(transaction_id)
-            if pending_txn[&#34;pool-error&#34;]:
-                waiting_ids.remove(transaction_id)
-            elif pending_txn.get(&#34;confirmed-round&#34;, 0) &gt; 0:
-                infos.append(pending_txn)
-                waiting_ids.remove(transaction_id)
-        if not waiting_ids:
-            break
-        # wait until the end of this block
-        client.status_after_block(current_round)
-        current_round += 1
-
-    return infos</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.transactions.group_txns"><code class="name flex">
 <span>def <span class="ident">group_txns</span></span>(<span>*txns: algosdk.future.transaction.Transaction) ‑> List[algosdk.future.transaction.Transaction]</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Group multiple transactions.</p>
+<div class="desc"><p>Group multiple transactions so that they can be submitted together as an
+atomic unit, and access one-another's data.</p>
 <h2 id="args">Args</h2>
 <dl>
 <dt><strong><code>txns</code></strong></dt>
 <dd>the transactions to group</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>list of transactions, with the <code>group</code> memmber set</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def group_txns(*txns: transaction.Transaction) -&gt; List[transaction.Transaction]:
-    &#34;&#34;&#34;
-    Group multiple transactions.
-
-    Args:
-        txns: the transactions to group
-
-    Returns:
-        list of transactions, with the `group` memmber set
-    &#34;&#34;&#34;
-    gid = transaction.calculate_group_id(txns)
-    for txn in txns:
-        txn.group = gid
-    return txns</code></pre>
-</details>
+<p>list of transactions, with the <code>group</code> member set</p></div>
 </dd>
 <dt id="algoappdev.transactions.pad_lease_bytes"><code class="name flex">
 <span>def <span class="ident">pad_lease_bytes</span></span>(<span>lease: bytes) ‑> bytes</span>
@@ -341,19 +94,6 @@ is the address of the account with the genesis funds.</p>
 <dd>
 <div class="desc"><p>Given a string of bytes to use as a lease, right pad with 0s to get the
 correct number of bytes.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def pad_lease_bytes(lease: bytes) -&gt; bytes:
-    &#34;&#34;&#34;
-    Given a string of bytes to use as a lease, right pad with 0s to get the
-    correct number of bytes.
-    &#34;&#34;&#34;
-    lease = lease[: ag.constants.LEASE_LENGTH]
-    lease = lease + (b&#34;\x00&#34; * max(0, ag.constants.LEASE_LENGTH - len(lease)))
-    return lease</code></pre>
-</details>
 </dd>
 </dl>
 </section>

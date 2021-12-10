@@ -22,79 +22,6 @@
 <h1 class="title">Module <code>algoappdev.scripts.make_node</code></h1>
 </header>
 <section id="section-intro">
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">import shutil
-import subprocess
-from pathlib import Path
-
-import pkg_resources
-
-
-def main(network: str, path: Path, force: bool):
-    path: Path = path / network
-
-    if force:
-        shutil.rmtree(str(path), ignore_errors=True)
-
-    elif path.is_dir():
-        if input(&#34;Overwrite [y/n]?&#34;).strip() == &#34;y&#34;:
-            shutil.rmtree(str(path), ignore_errors=True)
-        else:
-            print(&#34;Aborting&#34;)
-            return
-
-    template_path = Path(
-        pkg_resources.resource_filename(&#34;algoappdev&#34;, f&#34;data/network_{network}.json&#34;)
-    )
-
-    subprocess.call(
-        [
-            &#34;goal&#34;,
-            &#34;network&#34;,
-            &#34;create&#34;,
-            &#34;--rootdir&#34;,
-            str(path),
-            &#34;--network&#34;,
-            network,
-            &#34;--template&#34;,
-            str(template_path),
-        ]
-    )
-
-    if network == &#34;private_dev&#34;:
-        subprocess.call(
-            [
-                &#34;algocfg&#34;,
-                &#34;-d&#34;,
-                str(path / &#34;Primary&#34;),
-                &#34;set&#34;,
-                &#34;-p&#34;,
-                &#34;EnableDeveloperAPI&#34;,
-                &#34;-v&#34;,
-                &#34;true&#34;,
-            ]
-        )
-
-
-def main_args():
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(&#34;network&#34;, choices=(&#34;private&#34;, &#34;private_dev&#34;))
-    # default data path is be the `nets` directory in the algorand home
-    parser.add_argument(&#34;--path&#34;, type=Path, default=Path(&#34;/var/lib/algorand/nets&#34;))
-    parser.add_argument(&#34;-f&#34;, &#34;--force&#34;, action=&#34;store_true&#34;)
-    args = parser.parse_args()
-
-    main(**vars(args))
-
-
-if __name__ == &#34;__main__&#34;:
-    main_args()</code></pre>
-</details>
 </section>
 <section>
 </section>
@@ -108,77 +35,12 @@ if __name__ == &#34;__main__&#34;:
 </code></dt>
 <dd>
 <div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def main(network: str, path: Path, force: bool):
-    path: Path = path / network
-
-    if force:
-        shutil.rmtree(str(path), ignore_errors=True)
-
-    elif path.is_dir():
-        if input(&#34;Overwrite [y/n]?&#34;).strip() == &#34;y&#34;:
-            shutil.rmtree(str(path), ignore_errors=True)
-        else:
-            print(&#34;Aborting&#34;)
-            return
-
-    template_path = Path(
-        pkg_resources.resource_filename(&#34;algoappdev&#34;, f&#34;data/network_{network}.json&#34;)
-    )
-
-    subprocess.call(
-        [
-            &#34;goal&#34;,
-            &#34;network&#34;,
-            &#34;create&#34;,
-            &#34;--rootdir&#34;,
-            str(path),
-            &#34;--network&#34;,
-            network,
-            &#34;--template&#34;,
-            str(template_path),
-        ]
-    )
-
-    if network == &#34;private_dev&#34;:
-        subprocess.call(
-            [
-                &#34;algocfg&#34;,
-                &#34;-d&#34;,
-                str(path / &#34;Primary&#34;),
-                &#34;set&#34;,
-                &#34;-p&#34;,
-                &#34;EnableDeveloperAPI&#34;,
-                &#34;-v&#34;,
-                &#34;true&#34;,
-            ]
-        )</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.scripts.make_node.main_args"><code class="name flex">
 <span>def <span class="ident">main_args</span></span>(<span>)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def main_args():
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(&#34;network&#34;, choices=(&#34;private&#34;, &#34;private_dev&#34;))
-    # default data path is be the `nets` directory in the algorand home
-    parser.add_argument(&#34;--path&#34;, type=Path, default=Path(&#34;/var/lib/algorand/nets&#34;))
-    parser.add_argument(&#34;-f&#34;, &#34;--force&#34;, action=&#34;store_true&#34;)
-    args = parser.parse_args()
-
-    main(**vars(args))</code></pre>
-</details>
 </dd>
 </dl>
 </section>

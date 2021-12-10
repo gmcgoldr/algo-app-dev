@@ -22,36 +22,6 @@
 <h1 class="title">Module <code>algoappdev.scripts.run_node</code></h1>
 </header>
 <section id="section-intro">
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">import subprocess
-from pathlib import Path
-
-
-def main(network: str, path: Path, action: str):
-    path = path / network / &#34;Primary&#34;
-    subprocess.call([&#34;goal&#34;, &#34;-d&#34;, str(path), &#34;node&#34;, action])
-    subprocess.call([&#34;goal&#34;, &#34;-d&#34;, str(path), &#34;kmd&#34;, action])
-
-
-def main_args():
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(&#34;network&#34;, choices=(&#34;private&#34;, &#34;private_dev&#34;))
-    parser.add_argument(&#34;action&#34;, choices=(&#34;start&#34;, &#34;stop&#34;))
-    # default data path is be the `nets` directory in the algorand home
-    parser.add_argument(&#34;--path&#34;, type=Path, default=Path(&#34;/var/lib/algorand/nets&#34;))
-    args = parser.parse_args()
-
-    main(**vars(args))
-
-
-if __name__ == &#34;__main__&#34;:
-    main_args()</code></pre>
-</details>
 </section>
 <section>
 </section>
@@ -65,37 +35,12 @@ if __name__ == &#34;__main__&#34;:
 </code></dt>
 <dd>
 <div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def main(network: str, path: Path, action: str):
-    path = path / network / &#34;Primary&#34;
-    subprocess.call([&#34;goal&#34;, &#34;-d&#34;, str(path), &#34;node&#34;, action])
-    subprocess.call([&#34;goal&#34;, &#34;-d&#34;, str(path), &#34;kmd&#34;, action])</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.scripts.run_node.main_args"><code class="name flex">
 <span>def <span class="ident">main_args</span></span>(<span>)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def main_args():
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(&#34;network&#34;, choices=(&#34;private&#34;, &#34;private_dev&#34;))
-    parser.add_argument(&#34;action&#34;, choices=(&#34;start&#34;, &#34;stop&#34;))
-    # default data path is be the `nets` directory in the algorand home
-    parser.add_argument(&#34;--path&#34;, type=Path, default=Path(&#34;/var/lib/algorand/nets&#34;))
-    args = parser.parse_args()
-
-    main(**vars(args))</code></pre>
-</details>
 </dd>
 </dl>
 </section>

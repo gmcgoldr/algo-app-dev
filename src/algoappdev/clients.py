@@ -3,7 +3,6 @@ Utilities to connect to and interact with `algod` and `kmd` clients.
 """
 
 import base64
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, Union
 
@@ -16,7 +15,7 @@ from . import utils
 def build_algod_local_client(data_dir: Path) -> AlgodClient:
     """
     Build the `algod` client to interface with the local daemon whose
-    congifugartion network configruation is at `data_dir`.
+    configuration is at `data_dir`.
 
     Args:
         data_dir: the path with the network data
@@ -35,7 +34,7 @@ def build_algod_local_client(data_dir: Path) -> AlgodClient:
 def build_kmd_local_client(data_dir: Path, version: str = "0.5") -> KMDClient:
     """
     Build the `kmd` client to interface with the local daemon whose
-    congifugartion network configruation is at `data_dir`.
+    configuration is at `data_dir`.
 
     Args:
         data_dir: the path with the network data

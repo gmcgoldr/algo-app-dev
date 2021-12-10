@@ -1,4 +1,4 @@
-"""Utilities for smart contract construction."""
+"""Utilities for building and transacting with apps."""
 
 import base64
 from typing import Dict, List, NamedTuple, Type, Union
@@ -17,7 +17,7 @@ from algosdk.v2client.models.application_params import ApplicationParams
 from algosdk.v2client.models.application_state_schema import ApplicationStateSchema
 from algosdk.v2client.models.teal_key_value import TealKeyValue
 
-from algoappdev.utils import AlgoAppDevError
+from .utils import AlgoAppDevError
 
 Key = Union[int, str, bytes]
 TealType = Union[Type[tl.Int], Type[tl.Bytes]]
@@ -69,6 +69,12 @@ class State:
         """
 
         def __init__(self, key: Key, type: TealType, default: tl.Expr = None):
+            """
+            Args:
+                key: the key used to retreive this some state
+                type: the PyTeal type `tl.Int` or `tl.Bytes`
+                default: a PyTeal expression which produces a default value
+            """
             key = self.as_bytes(key)
             # the key as bytes
             self.key = key
@@ -98,18 +104,24 @@ class State:
                 raise AlgoAppDevError(f"key too long: {key}")
             return key
 
-    def __init__(self, infos: List[KeyInfo]):
-        self._key_to_info = {i.key: i for i in infos}
+    def __init__(self, keys: List[KeyInfo]):
+        """
+        Args:
+            keys: list of key information describing the state
+        """
+        self._key_to_info = {i.key: i for i in keys}
         self._maybe_values: Dict[bytes, tl.MaybeValue] = {}
 
     def key_info(self, key: Key):
+        """Get the `KeyInfo` for `key`."""
         return self._key_to_info[State.KeyInfo.as_bytes(key)]
 
     def key_infos(self) -> List[KeyInfo]:
+        """Get the list of `KeyInfo`s for the entire state."""
         return list(self._key_to_info.values())
 
     def schema(self) -> StateSchema:
-        """Build the schema for this state."""
+        """Build the schema for the state."""
         num_uints = 0
         num_byte_slices = 0
 
@@ -139,12 +151,12 @@ class StateGlobalExternal(State):
     Seq(maybe, maybe.value())
     ```
 
-    In this snippet, the sequence first stores the values retreived by get,
-    then the value is loaded onto the stack and can be used. To re-used the
+    In this snippet, the sequence first stores the values retrieved by get,
+    then the value is loaded onto the stack and can be used. To re-use the
     value from the given `key`, it is necessary to use the *same* `maybe`
     objet, as this one remembers which slot the value is stored in.
 
-    Making a second `MaybeValue` object whith the same key will not re-use the
+    Making a second `MaybeValue` object with the same key will not re-use the
     stored values from the first object. The second object could also evaluated
     to store the same value into a *new* slot. But without this step, it's
     `load` method is oblivious to the slots used by the `globalGetEx` call.
@@ -152,7 +164,7 @@ class StateGlobalExternal(State):
 
     def __init__(self, keys: List[State.KeyInfo], app_id: tl.Expr):
         """
-        Build the read-only global state representation for app at `app_id`.
+        See `State.__init__`.
 
         Args:
             app_id: expression evaluating to the id of an app in the app array
@@ -220,7 +232,7 @@ class StateGlobal(StateGlobalExternal):
         self,
         keys: List[State.KeyInfo],
     ):
-        """See `StateGlobalRead` but with write capability."""
+        """See `StateGlobalExternal.__init__` but for only the current app."""
         # only state of the current application can be written
         super().__init__(keys, tl.Global.current_application_id())
 
@@ -230,7 +242,7 @@ class StateGlobal(StateGlobalExternal):
         return tl.App.globalGet(tl.Bytes(info.key))
 
     def set(self, key: Key, value: TealValue) -> tl.Expr:
-        """Build the expression to set the state value at `key`"""
+        """Build the expression to set the state `value` at `key`"""
         info = self.key_info(key)
         return tl.App.globalPut(tl.Bytes(info.key), value)
 
@@ -253,8 +265,7 @@ class StateLocalExternal(State):
 
     def __init__(self, keys: List[State.KeyInfo], app_id: tl.Expr, account: tl.Expr):
         """
-        Build the read-only local state representation for app at `app_id` in
-        `account`.
+        See `State.__init__`.
 
         Args:
             app_id: expression evaluating to the id of an app in the app array
@@ -267,8 +278,6 @@ class StateLocalExternal(State):
 
     def get_ex(self, key: Key) -> tl.MaybeValue:
         """
-        Get the `MaybeValue` object for `key`.
-
         See `StateGlobalExternal.get_ex`.
         """
         info = self.key_info(key)
@@ -282,8 +291,6 @@ class StateLocalExternal(State):
 
     def load_ex_value(self, key: Key) -> tl.Expr:
         """
-        Load a `MaybeValue` into a slot and return its value.
-
         See `StateGlobalExternal.load_ex_value`.
         """
         maybe_value = self.get_ex(key)
@@ -291,8 +298,6 @@ class StateLocalExternal(State):
 
     def load_ex_has_value(self, key: Key) -> tl.Expr:
         """
-        Load a `MaybeValue` into a slot and return if it has a value.
-
         See `StateGlobalExternal.load_ex_has_value`.
         """
         maybe_value = self.get_ex(key)
@@ -305,31 +310,24 @@ class StateLocal(StateLocalExternal):
         keys: List[State.KeyInfo],
     ):
         """
-        Build the local state representation for app at `app_id` in `account`.
-
-        Args:
-            app_id: expression evaluating to the id of an app in the app array
-            account: expression evaluating to the account whose state is to be
-                accessed
+        See `StateLocalExternal.__init__` but for only the current app and the
+        transaction sender.
         """
         # only state of the current application for the sender can be written
         super().__init__(keys, tl.Global.current_application_id(), tl.Txn.sender())
 
     def get(self, key: Key) -> tl.Expr:
-        """Build the expression to get the state value at `key`"""
+        """See `StateGlobal.get`."""
         info = self.key_info(key)
         return tl.App.localGet(self.account, tl.Bytes(info.key))
 
     def set(self, key: Key, value: TealValue) -> tl.Expr:
-        """Build the expression to set the state value at `key`"""
+        """See `StateGlobal.set`."""
         info = self.key_info(key)
         return tl.App.localPut(self.account, tl.Bytes(info.key), value)
 
     def constructor(self) -> tl.Expr:
-        """
-        Build the expression to set the initial state values for those keys
-        with an `default` member.
-        """
+        """See `StateGlobal.constructor`."""
         return tl.Seq(
             *[
                 tl.App.localPut(self.account, tl.Bytes(i.key), i.default)
@@ -345,7 +343,8 @@ class AppBuilder(NamedTuple):
     expressions, with the provided app state.
 
     The app is specified as individual branches. At most one of those branches
-    will execute when the application is called.
+    will execute when the application is called (all branches are joined in a
+    `tl.Seq` expression, which must evaluate exactly one branch).
 
     Branches that can execute for an `ApplicationCall` transaction:
 
@@ -403,7 +402,7 @@ class AppBuilder(NamedTuple):
         # Each branch is a pair of expressions: one which tests if the branch
         # should be executed, and another which is the branche's logic. If the
         # branch logic returns 0, then the app state is unchanged, no matter what
-        # operations were performed during its exectuion (i.e. it rolls back). Only
+        # operations were performed during its execution (i.e. it rolls back). Only
         # the first matched branch is executed.
         branches = []
 
@@ -444,7 +443,7 @@ class AppBuilder(NamedTuple):
                 [tl.Txn.on_completion() == tl.OnComplete.CloseOut, self.on_close_out]
             )
 
-        # handle custon invocations with named arg
+        # handle custom invocations with named arg
         invocations = {} if self.invocations is None else self.invocations
         for name, expr in invocations.items():
             branches.append(
@@ -476,9 +475,11 @@ class AppBuilder(NamedTuple):
         return tl.Cond(*branches)
 
     def clear_expr(self) -> tl.Expr:
+        """Build the clear program expression."""
         return self.on_clear if self.on_clear is not None else tl.Return(ONE)
 
     def global_schema(self) -> StateSchema:
+        """Build the global schema."""
         return (
             self.global_state.schema()
             if self.global_state is not None
@@ -486,6 +487,7 @@ class AppBuilder(NamedTuple):
         )
 
     def local_schema(self) -> StateSchema:
+        """Build the local schema."""
         return (
             self.local_state.schema() if self.local_state is not None else StateSchema()
         )
@@ -494,7 +496,7 @@ class AppBuilder(NamedTuple):
         self, client: AlgodClient, address: str, params: SuggestedParams
     ) -> ApplicationCreateTxn:
         """
-        Build the transaction to create the app.
+        Build the transaction which creates the app.
 
         Args:
             client: the client connected to a node with the developer API, used
@@ -526,7 +528,7 @@ class AppBuilder(NamedTuple):
         app_id: int,
     ) -> ApplicationUpdateTxn:
         """
-        Build the transaction to update an app with this data.
+        Build the transaction which updates an app with this data.
 
         NOTE: the schema cannot be changed in an update transaction, meaning
         the state must be the same as that already used in `app_id`.
@@ -536,7 +538,7 @@ class AppBuilder(NamedTuple):
                 for compiling and to send the transaction
             address: the address of the app creator sending the transaction
             params: the transaction parameters
-            app_id: the id of the exisiting application to update
+            app_id: the id of the existing application to update
         """
         # ensure a valid clear program, interpret None as return zero
         return ApplicationUpdateTxn(
@@ -558,6 +560,16 @@ class AppBuilder(NamedTuple):
         Build the `Application` object describing this application.
 
         This is used to interface with the dryrun APIs.
+
+        Args:
+            client: the client connected to a node with the developer API, used
+                for compiling and to send the transaction
+            app_idx: the application index to assign to this app, used to cross
+                reference in transactions and other apps in the dry run
+            creator: the application's creator's address, needed if the logic
+                accesses `tl.Global.creator_address`, and for making a dryrun
+                of the app creation
+            global_state: attach this global state to the app in the dryrun
         """
         global_schema = self.global_schema()
         local_schema = self.local_schema()

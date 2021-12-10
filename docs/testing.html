@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
 <title>algoappdev.testing API documentation</title>
-<meta name="description" content="" />
+<meta name="description" content="Utilities for testing apps." />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
 <link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
@@ -22,49 +22,7 @@
 <h1 class="title">Module <code>algoappdev.testing</code></h1>
 </header>
 <section id="section-intro">
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">import os
-from pathlib import Path
-
-import algosdk as ag
-import pytest
-from algosdk.kmd import KMDClient
-from algosdk.v2client.algod import AlgodClient
-
-from algoappdev import clients, transactions
-from algoappdev.utils import AccountMeta
-
-NODE_DIR = Path(os.getenv(&#34;AAD_DATA&#34;, &#34;/var/lib/algorand/nets/private_dev/Primary&#34;))
-WAIT_ROUNDS = int(os.getenv(&#34;ADD_WAIT_ROUNDS&#34;, 1))
-
-
-@pytest.fixture(scope=&#34;module&#34;)
-def algod_client() -&gt; AlgodClient:
-    return clients.build_algod_local_client(NODE_DIR)
-
-
-@pytest.fixture(scope=&#34;module&#34;)
-def kmd_client() -&gt; AlgodClient:
-    return clients.build_kmd_local_client(NODE_DIR)
-
-
-def fund_account(
-    algod_client: AlgodClient,
-    kmd_client: KMDClient,
-    microalgos: int,
-) -&gt; AccountMeta:
-    account, txid = transactions.fund_from_genesis(algod_client, kmd_client, microalgos)
-    transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-    return account
-
-
-@pytest.fixture
-def funded_account(algod_client: AlgodClient, kmd_client: KMDClient) -&gt; AccountMeta:
-    return fund_account(algod_client, kmd_client, ag.util.algos_to_microalgos(1000))</code></pre>
-</details>
+<p>Utilities for testing apps.</p>
 </section>
 <section>
 </section>
@@ -77,62 +35,41 @@ def funded_account(algod_client: AlgodClient, kmd_client: KMDClient) -&gt; Accou
 <span>def <span class="ident">algod_client</span></span>(<span>) ‑> algosdk.v2client.algod.AlgodClient</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@pytest.fixture(scope=&#34;module&#34;)
-def algod_client() -&gt; AlgodClient:
-    return clients.build_algod_local_client(NODE_DIR)</code></pre>
-</details>
+<div class="desc"><p>Build the client connected to the local <code>algod</code> daemon.</p>
+<p>Finds the daemon operating on the data at the directory stored in the
+environment variable <code>ADD_DATA</code>.</p></div>
 </dd>
 <dt id="algoappdev.testing.fund_account"><code class="name flex">
 <span>def <span class="ident">fund_account</span></span>(<span>algod_client: algosdk.v2client.algod.AlgodClient, kmd_client: algosdk.kmd.KMDClient, microalgos: int) ‑> <a title="algoappdev.utils.AccountMeta" href="utils.html#algoappdev.utils.AccountMeta">AccountMeta</a></span>
 </code></dt>
 <dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def fund_account(
-    algod_client: AlgodClient,
-    kmd_client: KMDClient,
-    microalgos: int,
-) -&gt; AccountMeta:
-    account, txid = transactions.fund_from_genesis(algod_client, kmd_client, microalgos)
-    transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-    return account</code></pre>
-</details>
+<div class="desc"><p>Use funds from the genesis account to fund a new account.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>algod_client</code></strong></dt>
+<dd>the client to which the transaction is submitted</dd>
+<dt><strong><code>kmd_client</code></strong></dt>
+<dd>the client which signs the transaction for the genesis
+account</dd>
+<dt><strong><code>microalgos</code></strong></dt>
+<dd>the quantity of microAlgos to add to the new account</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>the meta data of the newly funded account</p></div>
 </dd>
 <dt id="algoappdev.testing.funded_account"><code class="name flex">
 <span>def <span class="ident">funded_account</span></span>(<span>algod_client: algosdk.v2client.algod.AlgodClient, kmd_client: algosdk.kmd.KMDClient) ‑> <a title="algoappdev.utils.AccountMeta" href="utils.html#algoappdev.utils.AccountMeta">AccountMeta</a></span>
 </code></dt>
 <dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@pytest.fixture
-def funded_account(algod_client: AlgodClient, kmd_client: KMDClient) -&gt; AccountMeta:
-    return fund_account(algod_client, kmd_client, ag.util.algos_to_microalgos(1000))</code></pre>
-</details>
+<div class="desc"><p>Create a new account and add 1 Algo of funds to it. See <code><a title="algoappdev.testing.fund_account" href="#algoappdev.testing.fund_account">fund_account()</a></code>.</p></div>
 </dd>
 <dt id="algoappdev.testing.kmd_client"><code class="name flex">
 <span>def <span class="ident">kmd_client</span></span>(<span>) ‑> algosdk.v2client.algod.AlgodClient</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@pytest.fixture(scope=&#34;module&#34;)
-def kmd_client() -&gt; AlgodClient:
-    return clients.build_kmd_local_client(NODE_DIR)</code></pre>
-</details>
+<div class="desc"><p>Build the client connected to the local <code>kmd</code> daemon.</p>
+<p>Finds the daemon operating on the data at the directory stored in the
+environment variable <code>ADD_DATA</code>.</p></div>
 </dd>
 </dl>
 </section>

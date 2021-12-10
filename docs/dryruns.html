@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
 <title>algoappdev.dryruns API documentation</title>
-<meta name="description" content="" />
+<meta name="description" content="Utilities for building and parsing dryruns." />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
 <link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
@@ -22,406 +22,7 @@
 <h1 class="title">Module <code>algoappdev.dryruns</code></h1>
 </header>
 <section id="section-intro">
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">import base64
-import copy
-from collections import defaultdict
-from typing import Dict, List, NamedTuple, Union
-
-import algosdk as ag
-from algosdk.future.transaction import (
-    ApplicationCallTxn,
-    OnComplete,
-    SignedTransaction,
-    SuggestedParams,
-    Transaction,
-)
-from algosdk.v2client.models.account import Account
-from algosdk.v2client.models.application import Application
-from algosdk.v2client.models.application_local_state import ApplicationLocalState
-from algosdk.v2client.models.application_params import ApplicationParams
-from algosdk.v2client.models.application_state_schema import ApplicationStateSchema
-from algosdk.v2client.models.asset import Asset
-from algosdk.v2client.models.asset_holding import AssetHolding
-from algosdk.v2client.models.dryrun_request import DryrunRequest
-from algosdk.v2client.models.teal_key_value import TealKeyValue
-
-from algoappdev.utils import (
-    ZERO_ADDRESS,
-    AlgoAppDevError,
-    address_to_idx,
-    from_value,
-    idx_to_address,
-)
-
-MAX_SCHEMA = ApplicationStateSchema(64, 64)
-
-
-class TraceItem(NamedTuple):
-    source: str
-    stack: List[Union[int, bytes]]
-    program_counter: int
-
-    def __str__(self) -&gt; str:
-        # max 12 char stack value
-        stack = [str(v) for v in self.stack]
-        stack = [(v[:7] + &#34;..&#34; + v[-3:] if len(v) &gt; 12 else v) for v in stack]
-        stack = [f&#34;{v:12s}&#34; for v in stack]
-        stack = &#34;, &#34;.join(stack)
-        # max 40 char source code
-        source = self.source
-        if len(source) &gt; 40:
-            source = source[:-37] + &#34;...&#34;
-        return f&#34;{self.program_counter:5d} :: {source:40s} :: [{stack}]&#34;
-
-
-class KeyDelta(NamedTuple):
-    key: bytes
-    value: int
-
-    @staticmethod
-    def from_result(result: Dict) -&gt; &#34;KeyDelta&#34;:
-        key = base64.b64decode(result[&#34;key&#34;])
-        value = result[&#34;value&#34;].get(&#34;uint&#34;, None)
-        if value is None:
-            value = result[&#34;value&#34;].get(&#34;bytes&#34;, None)
-            value = base64.b64decode(value)
-        return KeyDelta(key, value)
-
-
-def build_application(
-    app_idx: int,
-    approval_program: bytes = None,
-    clear_state_program: bytes = None,
-    global_schema: ApplicationStateSchema = None,
-    local_schema: ApplicationStateSchema = None,
-    state: List[TealKeyValue] = None,
-    creator: str = None,
-) -&gt; Application:
-    &#34;&#34;&#34;
-    Build an Application with a given `app_idx`.
-
-    With just the `app_idx` specified, the app cannot be used in a transaction.
-
-    The programs can be set to allow the app logic to be called. Note that the
-    `approval_program` is the one called for all `on_complete` code other than
-    the `ClearState` code. Those transcations will call `clear_state_program`.
-
-    If the schemas are `None`, default to the most permissive schema (64 byte
-    slices and 64 ints).
-
-    Use `state` to provide key-value pairs for the app&#39;s global state.
-    &#34;&#34;&#34;
-    global_schema = global_schema if global_schema is not None else MAX_SCHEMA
-    local_schema = local_schema if local_schema is not None else MAX_SCHEMA
-    return Application(
-        id=app_idx,
-        params=ApplicationParams(
-            creator=creator,
-            global_state=state,
-            approval_program=approval_program,
-            clear_state_program=clear_state_program,
-            global_state_schema=global_schema,
-            local_state_schema=local_schema,
-        ),
-    )
-
-
-def build_account(
-    address: str,
-    local_states: List[ApplicationLocalState] = None,
-    assets: List[AssetHolding] = None,
-    microalgos: int = None,
-    status: str = &#34;Offline&#34;,
-) -&gt; Account:
-    &#34;&#34;&#34;
-    Build an account with the given `address`.
-
-    With just the `address` specified, the account cannot be used in a
-    transaction.
-
-    Use `local_states` to provide key-value pairs for various apps this account
-    has opted into. The actual state can be empty to indicate the account has
-    opted in, but has nothing set in its local storage.
-
-    Use `assets` to provide information about assets owned by the account.
-
-    Use `mircoalgos` to provide a balance of Algo owned by the account.
-    &#34;&#34;&#34;
-    return Account(
-        address=address,
-        amount=microalgos,
-        apps_local_state=local_states,
-        assets=assets,
-        status=status,
-    )
-
-
-class AppCallCtx:
-    &#34;&#34;&#34;
-    Describes the context (arguments) seen by an app when called by a group
-    of transactions.
-    &#34;&#34;&#34;
-
-    def __init__(self):
-        # applications with state and / or logic accessed by transactions
-        self.apps: List[Application] = []
-        # transactions, at least one of which should call an app
-        self.txns: List[Transaction] = []
-        # accounts state accessed by the apps
-        self.accounts: List[Account] = []
-        # assets accessed by the apps
-        self.assets: List[Asset] = []
-        # last timestamp on the ledger
-        self.latest_timestamp: int = None
-        # last round number on the ledger
-        self.round: int = None
-
-    def _next_app_idx(self) -&gt; int:
-        if not self.apps:
-            return 1
-        app_idxs = {a.id for a in self.apps}
-        for idx in sorted(app_idxs):
-            if idx &lt; 2 ** 64 - 1 and idx + 1 not in app_idxs:
-                return idx + 1
-        # system will be out of memory before this happens
-        return None
-
-    def _next_account_address(self) -&gt; str:
-        if not self.accounts:
-            return idx_to_address(1)
-        account_idxs = {address_to_idx(a.address) for a in self.accounts}
-        for idx in sorted(account_idxs):
-            if idx &lt; 2 ** 64 - 1 and idx + 1 not in account_idxs:
-                return idx_to_address(idx + 1)
-        # system will be out of memory before this happens
-        return None
-
-    def _last_app_idx(self) -&gt; int:
-        return self.apps[-1].id if self.apps else 0
-
-    def _last_account_address(self) -&gt; str:
-        return self.accounts[-1].address if self.accounts else ZERO_ADDRESS
-
-    def suggested_params(self) -&gt; SuggestedParams:
-        &#34;&#34;&#34;
-        Build minimal transaction parameters which will work with dry run.
-
-        Defaults to using the minimal network fee, and allowing the maximum
-        transaction lifetime for execution, from the current `round` or from
-        the first round.
-        &#34;&#34;&#34;
-        first = self.round if self.round is not None else 1
-        return SuggestedParams(
-            fee=ag.constants.min_txn_fee,
-            first=first,
-            # currently this is the network&#39;s maximum transaction life, but this
-            # could change and isn&#39;t part of the SDK
-            last=first + 1000 - 1,
-            gh=&#34;&#34;,
-            flat_fee=True,
-        )
-
-    def with_latest_timestamp(self, latest_timestamp: int) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;Set the latest timestamp (`Global.latest_timestamp`)&#34;&#34;&#34;
-        ctx = copy.deepcopy(self)
-        ctx.latest_timestamp = latest_timestamp
-        return ctx
-
-    def with_round(self, round: int) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;Set the last round (`Global.round`)&#34;&#34;&#34;
-        ctx = copy.deepcopy(self)
-        ctx.round = round
-        return ctx
-
-    def with_app(self, app: Application) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;
-        Add an application. If this application is being called, its source
-        program(s) must be supplied.
-        &#34;&#34;&#34;
-        ctx = copy.deepcopy(self)
-        ctx.apps.append(copy.deepcopy(app))
-        return ctx
-
-    def with_app_program(
-        self,
-        program: bytes = None,
-        app_idx: int = None,
-        state: List[TealKeyValue] = None,
-    ) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;
-        Add an application with defaults and possibly an approval program.
-
-        If `app_idx` is omitted, defaults to the next available app idx not in
-        the `apps`.
-        &#34;&#34;&#34;
-        app_idx = app_idx if app_idx is not None else self._next_app_idx()
-        return self.with_app(
-            build_application(app_idx=app_idx, approval_program=program, state=state)
-        )
-
-    def with_account(self, account: Account) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;Add an account with some local state.&#34;&#34;&#34;
-        ctx = copy.deepcopy(self)
-        ctx.accounts.append(copy.deepcopy(account))
-        return ctx
-
-    def with_account_opted_in(
-        self,
-        app_idx: int = None,
-        address: str = None,
-        local_state: List[TealKeyValue] = None,
-    ) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;
-        Add an account which is opted into to an app.
-
-        If `app_idx` is omitted, defaults to the index of the last added app.
-
-        If `address` is omitted, defaults to the next available address not in
-        the `accounts`.
-
-        If `local_state` isn&#39;t provided, then the account is seen to be opted
-        into the app, but with no local storage set.
-        &#34;&#34;&#34;
-        address = address if address is not None else self._next_account_address()
-        app_idx = app_idx if app_idx is not None else self._last_app_idx()
-        account = build_account(
-            address,
-            local_states=[ApplicationLocalState(id=app_idx, key_value=local_state)],
-        )
-        return self.with_account(account)
-
-    def with_txn(self, txn: Transaction) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;
-        Add a transaction.
-
-        NOTE: for an `ApplicationCreateTxn`, the transaction sender must match
-        the application creator. The zero address can be used for both.
-        &#34;&#34;&#34;
-        ctx = copy.deepcopy(self)
-        ctx.txns.append(copy.deepcopy(txn))
-        return ctx
-
-    def with_txn_call(
-        self,
-        on_complete: OnComplete = OnComplete.NoOpOC,
-        sender: str = None,
-        params: SuggestedParams = None,
-        app_idx: int = None,
-        args: List[bytes] = None,
-    ) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;
-        Add a transaction which calls an app.
-
-        If `sender` is omitted, defaults to the address of the last added
-        account.
-
-        If `params` is omitted, defaults to the result of `suggested_params`.
-
-        If `app_idx` is omitted, defaults to the index of the last added app.
-        &#34;&#34;&#34;
-        app_idx = app_idx if app_idx is not None else self._last_app_idx()
-        return self.with_txn(
-            ApplicationCallTxn(
-                sender=sender if sender is not None else self._last_account_address(),
-                sp=params if params is not None else self.suggested_params(),
-                index=app_idx,
-                on_complete=on_complete,
-                app_args=args,
-                accounts=[a.address for a in self.accounts],
-                foreign_apps=[a.id for a in self.apps],
-                foreign_assets=[a.index for a in self.assets],
-            )
-        )
-
-    def build_request(self) -&gt; DryrunRequest:
-        &#34;&#34;&#34;Build the dry run request.&#34;&#34;&#34;
-        # dryrun expects signed transactions but doesn&#39;t actually use the
-        # signature data, so set it to None
-        signed_txns = [
-            SignedTransaction(t, None) if not isinstance(t, SignedTransaction) else t
-            for t in self.txns
-        ]
-        return DryrunRequest(
-            txns=signed_txns,
-            apps=self.apps,
-            accounts=self.accounts,
-            # not clear if this is accessed anywhere
-            protocol_version=None,
-            round=self.round,
-            latest_timestamp=self.latest_timestamp,
-            # sources are already compiled and included in the apps
-            sources=None,
-        )
-
-
-def check_err(result: Dict):
-    &#34;&#34;&#34;Raise an error if the result contains an execution error.&#34;&#34;&#34;
-    message = result.get(&#34;error&#34;, None)
-    if message:
-        raise AlgoAppDevError(f&#34;dryrun error: {message}&#34;)
-
-
-def get_messages(result: Dict, txn_idx: int = 0) -&gt; List[str]:
-    &#34;&#34;&#34;Get the list of execution messages for transaction `txn_idx`.&#34;&#34;&#34;
-    try:
-        txn = result.get(&#34;txns&#34;, [])[txn_idx]
-    except IndexError:
-        return []
-    return txn.get(&#34;app-call-messages&#34;, [])
-
-
-def get_trace(result: Dict, txn_idx: int = 0) -&gt; List[TraceItem]:
-    &#34;&#34;&#34;Get the list of trace lines for transaction `txn_idx`.&#34;&#34;&#34;
-    try:
-        txn = result.get(&#34;txns&#34;, [])[txn_idx]
-    except IndexError:
-        return []
-
-    trace_items = []
-
-    lines = txn.get(&#34;disassembly&#34;, None)
-    trace = txn.get(&#34;app-call-trace&#34;, None)
-    if lines is None or trace is None:
-        return []
-
-    for item in trace:
-        line = lines[item[&#34;line&#34;] - 1]
-        stack = [from_value(i) for i in item[&#34;stack&#34;]]
-        trace_items.append(TraceItem(line, stack, item[&#34;pc&#34;]))
-
-    return trace_items
-
-
-def get_global_deltas(result: Dict, txn_idx: int = 0) -&gt; List[KeyDelta]:
-    &#34;&#34;&#34;Get the list of global key deltas for transaction `txn_idx`.&#34;&#34;&#34;
-    try:
-        txn = result.get(&#34;txns&#34;, [])[txn_idx]
-    except IndexError:
-        return []
-    return [KeyDelta.from_result(d) for d in txn.get(&#34;global-delta&#34;)]
-
-
-def get_local_deltas(result: Dict, txn_idx: int = 0) -&gt; Dict[str, List[KeyDelta]]:
-    &#34;&#34;&#34;Get the list of local key deltas for transaction `txn_idx`.&#34;&#34;&#34;
-    try:
-        txn = result.get(&#34;txns&#34;, [])[txn_idx]
-    except IndexError:
-        return []
-
-    local_deltas = defaultdict(list)
-    for local_delta in txn.get(&#34;local-deltas&#34;, []):
-        address = local_delta[&#34;address&#34;]
-        deltas = local_delta[&#34;delta&#34;]
-        if address is None or deltas is None:
-            continue
-        local_deltas[address] += [KeyDelta.from_result(d) for d in deltas]
-
-    return dict(local_deltas)</code></pre>
-</details>
+<p>Utilities for building and parsing dryruns.</p>
 </section>
 <section>
 </section>
@@ -442,39 +43,6 @@ has opted into. The actual state can be empty to indicate the account has
 opted in, but has nothing set in its local storage.</p>
 <p>Use <code>assets</code> to provide information about assets owned by the account.</p>
 <p>Use <code>mircoalgos</code> to provide a balance of Algo owned by the account.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def build_account(
-    address: str,
-    local_states: List[ApplicationLocalState] = None,
-    assets: List[AssetHolding] = None,
-    microalgos: int = None,
-    status: str = &#34;Offline&#34;,
-) -&gt; Account:
-    &#34;&#34;&#34;
-    Build an account with the given `address`.
-
-    With just the `address` specified, the account cannot be used in a
-    transaction.
-
-    Use `local_states` to provide key-value pairs for various apps this account
-    has opted into. The actual state can be empty to indicate the account has
-    opted in, but has nothing set in its local storage.
-
-    Use `assets` to provide information about assets owned by the account.
-
-    Use `mircoalgos` to provide a balance of Algo owned by the account.
-    &#34;&#34;&#34;
-    return Account(
-        address=address,
-        amount=microalgos,
-        apps_local_state=local_states,
-        assets=assets,
-        status=status,
-    )</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.build_application"><code class="name flex">
 <span>def <span class="ident">build_application</span></span>(<span>app_idx: int, approval_program: bytes = None, clear_state_program: bytes = None, global_schema: algosdk.v2client.models.application_state_schema.ApplicationStateSchema = None, local_schema: algosdk.v2client.models.application_state_schema.ApplicationStateSchema = None, state: List[algosdk.v2client.models.teal_key_value.TealKeyValue] = None, creator: str = None) ‑> algosdk.v2client.models.application.Application</span>
@@ -488,157 +56,36 @@ the <code>ClearState</code> code. Those transcations will call <code>clear_state
 <p>If the schemas are <code>None</code>, default to the most permissive schema (64 byte
 slices and 64 ints).</p>
 <p>Use <code>state</code> to provide key-value pairs for the app's global state.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def build_application(
-    app_idx: int,
-    approval_program: bytes = None,
-    clear_state_program: bytes = None,
-    global_schema: ApplicationStateSchema = None,
-    local_schema: ApplicationStateSchema = None,
-    state: List[TealKeyValue] = None,
-    creator: str = None,
-) -&gt; Application:
-    &#34;&#34;&#34;
-    Build an Application with a given `app_idx`.
-
-    With just the `app_idx` specified, the app cannot be used in a transaction.
-
-    The programs can be set to allow the app logic to be called. Note that the
-    `approval_program` is the one called for all `on_complete` code other than
-    the `ClearState` code. Those transcations will call `clear_state_program`.
-
-    If the schemas are `None`, default to the most permissive schema (64 byte
-    slices and 64 ints).
-
-    Use `state` to provide key-value pairs for the app&#39;s global state.
-    &#34;&#34;&#34;
-    global_schema = global_schema if global_schema is not None else MAX_SCHEMA
-    local_schema = local_schema if local_schema is not None else MAX_SCHEMA
-    return Application(
-        id=app_idx,
-        params=ApplicationParams(
-            creator=creator,
-            global_state=state,
-            approval_program=approval_program,
-            clear_state_program=clear_state_program,
-            global_state_schema=global_schema,
-            local_state_schema=local_schema,
-        ),
-    )</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.check_err"><code class="name flex">
 <span>def <span class="ident">check_err</span></span>(<span>result: Dict[~KT, ~VT])</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Raise an error if the result contains an execution error.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def check_err(result: Dict):
-    &#34;&#34;&#34;Raise an error if the result contains an execution error.&#34;&#34;&#34;
-    message = result.get(&#34;error&#34;, None)
-    if message:
-        raise AlgoAppDevError(f&#34;dryrun error: {message}&#34;)</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.get_global_deltas"><code class="name flex">
 <span>def <span class="ident">get_global_deltas</span></span>(<span>result: Dict[~KT, ~VT], txn_idx: int = 0) ‑> List[<a title="algoappdev.dryruns.KeyDelta" href="#algoappdev.dryruns.KeyDelta">KeyDelta</a>]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Get the list of global key deltas for transaction <code>txn_idx</code>.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_global_deltas(result: Dict, txn_idx: int = 0) -&gt; List[KeyDelta]:
-    &#34;&#34;&#34;Get the list of global key deltas for transaction `txn_idx`.&#34;&#34;&#34;
-    try:
-        txn = result.get(&#34;txns&#34;, [])[txn_idx]
-    except IndexError:
-        return []
-    return [KeyDelta.from_result(d) for d in txn.get(&#34;global-delta&#34;)]</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.get_local_deltas"><code class="name flex">
 <span>def <span class="ident">get_local_deltas</span></span>(<span>result: Dict[~KT, ~VT], txn_idx: int = 0) ‑> Dict[str, List[<a title="algoappdev.dryruns.KeyDelta" href="#algoappdev.dryruns.KeyDelta">KeyDelta</a>]]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Get the list of local key deltas for transaction <code>txn_idx</code>.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_local_deltas(result: Dict, txn_idx: int = 0) -&gt; Dict[str, List[KeyDelta]]:
-    &#34;&#34;&#34;Get the list of local key deltas for transaction `txn_idx`.&#34;&#34;&#34;
-    try:
-        txn = result.get(&#34;txns&#34;, [])[txn_idx]
-    except IndexError:
-        return []
-
-    local_deltas = defaultdict(list)
-    for local_delta in txn.get(&#34;local-deltas&#34;, []):
-        address = local_delta[&#34;address&#34;]
-        deltas = local_delta[&#34;delta&#34;]
-        if address is None or deltas is None:
-            continue
-        local_deltas[address] += [KeyDelta.from_result(d) for d in deltas]
-
-    return dict(local_deltas)</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.get_messages"><code class="name flex">
 <span>def <span class="ident">get_messages</span></span>(<span>result: Dict[~KT, ~VT], txn_idx: int = 0) ‑> List[str]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Get the list of execution messages for transaction <code>txn_idx</code>.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_messages(result: Dict, txn_idx: int = 0) -&gt; List[str]:
-    &#34;&#34;&#34;Get the list of execution messages for transaction `txn_idx`.&#34;&#34;&#34;
-    try:
-        txn = result.get(&#34;txns&#34;, [])[txn_idx]
-    except IndexError:
-        return []
-    return txn.get(&#34;app-call-messages&#34;, [])</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.get_trace"><code class="name flex">
 <span>def <span class="ident">get_trace</span></span>(<span>result: Dict[~KT, ~VT], txn_idx: int = 0) ‑> List[<a title="algoappdev.dryruns.TraceItem" href="#algoappdev.dryruns.TraceItem">TraceItem</a>]</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Get the list of trace lines for transaction <code>txn_idx</code>.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_trace(result: Dict, txn_idx: int = 0) -&gt; List[TraceItem]:
-    &#34;&#34;&#34;Get the list of trace lines for transaction `txn_idx`.&#34;&#34;&#34;
-    try:
-        txn = result.get(&#34;txns&#34;, [])[txn_idx]
-    except IndexError:
-        return []
-
-    trace_items = []
-
-    lines = txn.get(&#34;disassembly&#34;, None)
-    trace = txn.get(&#34;app-call-trace&#34;, None)
-    if lines is None or trace is None:
-        return []
-
-    for item in trace:
-        line = lines[item[&#34;line&#34;] - 1]
-        stack = [from_value(i) for i in item[&#34;stack&#34;]]
-        trace_items.append(TraceItem(line, stack, item[&#34;pc&#34;]))
-
-    return trace_items</code></pre>
-</details>
 </dd>
 </dl>
 </section>
@@ -649,209 +96,8 @@ slices and 64 ints).</p>
 <span>class <span class="ident">AppCallCtx</span></span>
 </code></dt>
 <dd>
-<div class="desc"><p>Describes the context (arguments) seen by an app when called by a group
-of transactions.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class AppCallCtx:
-    &#34;&#34;&#34;
-    Describes the context (arguments) seen by an app when called by a group
-    of transactions.
-    &#34;&#34;&#34;
-
-    def __init__(self):
-        # applications with state and / or logic accessed by transactions
-        self.apps: List[Application] = []
-        # transactions, at least one of which should call an app
-        self.txns: List[Transaction] = []
-        # accounts state accessed by the apps
-        self.accounts: List[Account] = []
-        # assets accessed by the apps
-        self.assets: List[Asset] = []
-        # last timestamp on the ledger
-        self.latest_timestamp: int = None
-        # last round number on the ledger
-        self.round: int = None
-
-    def _next_app_idx(self) -&gt; int:
-        if not self.apps:
-            return 1
-        app_idxs = {a.id for a in self.apps}
-        for idx in sorted(app_idxs):
-            if idx &lt; 2 ** 64 - 1 and idx + 1 not in app_idxs:
-                return idx + 1
-        # system will be out of memory before this happens
-        return None
-
-    def _next_account_address(self) -&gt; str:
-        if not self.accounts:
-            return idx_to_address(1)
-        account_idxs = {address_to_idx(a.address) for a in self.accounts}
-        for idx in sorted(account_idxs):
-            if idx &lt; 2 ** 64 - 1 and idx + 1 not in account_idxs:
-                return idx_to_address(idx + 1)
-        # system will be out of memory before this happens
-        return None
-
-    def _last_app_idx(self) -&gt; int:
-        return self.apps[-1].id if self.apps else 0
-
-    def _last_account_address(self) -&gt; str:
-        return self.accounts[-1].address if self.accounts else ZERO_ADDRESS
-
-    def suggested_params(self) -&gt; SuggestedParams:
-        &#34;&#34;&#34;
-        Build minimal transaction parameters which will work with dry run.
-
-        Defaults to using the minimal network fee, and allowing the maximum
-        transaction lifetime for execution, from the current `round` or from
-        the first round.
-        &#34;&#34;&#34;
-        first = self.round if self.round is not None else 1
-        return SuggestedParams(
-            fee=ag.constants.min_txn_fee,
-            first=first,
-            # currently this is the network&#39;s maximum transaction life, but this
-            # could change and isn&#39;t part of the SDK
-            last=first + 1000 - 1,
-            gh=&#34;&#34;,
-            flat_fee=True,
-        )
-
-    def with_latest_timestamp(self, latest_timestamp: int) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;Set the latest timestamp (`Global.latest_timestamp`)&#34;&#34;&#34;
-        ctx = copy.deepcopy(self)
-        ctx.latest_timestamp = latest_timestamp
-        return ctx
-
-    def with_round(self, round: int) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;Set the last round (`Global.round`)&#34;&#34;&#34;
-        ctx = copy.deepcopy(self)
-        ctx.round = round
-        return ctx
-
-    def with_app(self, app: Application) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;
-        Add an application. If this application is being called, its source
-        program(s) must be supplied.
-        &#34;&#34;&#34;
-        ctx = copy.deepcopy(self)
-        ctx.apps.append(copy.deepcopy(app))
-        return ctx
-
-    def with_app_program(
-        self,
-        program: bytes = None,
-        app_idx: int = None,
-        state: List[TealKeyValue] = None,
-    ) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;
-        Add an application with defaults and possibly an approval program.
-
-        If `app_idx` is omitted, defaults to the next available app idx not in
-        the `apps`.
-        &#34;&#34;&#34;
-        app_idx = app_idx if app_idx is not None else self._next_app_idx()
-        return self.with_app(
-            build_application(app_idx=app_idx, approval_program=program, state=state)
-        )
-
-    def with_account(self, account: Account) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;Add an account with some local state.&#34;&#34;&#34;
-        ctx = copy.deepcopy(self)
-        ctx.accounts.append(copy.deepcopy(account))
-        return ctx
-
-    def with_account_opted_in(
-        self,
-        app_idx: int = None,
-        address: str = None,
-        local_state: List[TealKeyValue] = None,
-    ) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;
-        Add an account which is opted into to an app.
-
-        If `app_idx` is omitted, defaults to the index of the last added app.
-
-        If `address` is omitted, defaults to the next available address not in
-        the `accounts`.
-
-        If `local_state` isn&#39;t provided, then the account is seen to be opted
-        into the app, but with no local storage set.
-        &#34;&#34;&#34;
-        address = address if address is not None else self._next_account_address()
-        app_idx = app_idx if app_idx is not None else self._last_app_idx()
-        account = build_account(
-            address,
-            local_states=[ApplicationLocalState(id=app_idx, key_value=local_state)],
-        )
-        return self.with_account(account)
-
-    def with_txn(self, txn: Transaction) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;
-        Add a transaction.
-
-        NOTE: for an `ApplicationCreateTxn`, the transaction sender must match
-        the application creator. The zero address can be used for both.
-        &#34;&#34;&#34;
-        ctx = copy.deepcopy(self)
-        ctx.txns.append(copy.deepcopy(txn))
-        return ctx
-
-    def with_txn_call(
-        self,
-        on_complete: OnComplete = OnComplete.NoOpOC,
-        sender: str = None,
-        params: SuggestedParams = None,
-        app_idx: int = None,
-        args: List[bytes] = None,
-    ) -&gt; &#34;AppCallCtx&#34;:
-        &#34;&#34;&#34;
-        Add a transaction which calls an app.
-
-        If `sender` is omitted, defaults to the address of the last added
-        account.
-
-        If `params` is omitted, defaults to the result of `suggested_params`.
-
-        If `app_idx` is omitted, defaults to the index of the last added app.
-        &#34;&#34;&#34;
-        app_idx = app_idx if app_idx is not None else self._last_app_idx()
-        return self.with_txn(
-            ApplicationCallTxn(
-                sender=sender if sender is not None else self._last_account_address(),
-                sp=params if params is not None else self.suggested_params(),
-                index=app_idx,
-                on_complete=on_complete,
-                app_args=args,
-                accounts=[a.address for a in self.accounts],
-                foreign_apps=[a.id for a in self.apps],
-                foreign_assets=[a.index for a in self.assets],
-            )
-        )
-
-    def build_request(self) -&gt; DryrunRequest:
-        &#34;&#34;&#34;Build the dry run request.&#34;&#34;&#34;
-        # dryrun expects signed transactions but doesn&#39;t actually use the
-        # signature data, so set it to None
-        signed_txns = [
-            SignedTransaction(t, None) if not isinstance(t, SignedTransaction) else t
-            for t in self.txns
-        ]
-        return DryrunRequest(
-            txns=signed_txns,
-            apps=self.apps,
-            accounts=self.accounts,
-            # not clear if this is accessed anywhere
-            protocol_version=None,
-            round=self.round,
-            latest_timestamp=self.latest_timestamp,
-            # sources are already compiled and included in the apps
-            sources=None,
-        )</code></pre>
-</details>
+<div class="desc"><p>Build up the full context (arguments) which are accessible by app calls
+generated by a group of transactions (or a single transaction).</p></div>
 <h3>Methods</h3>
 <dl>
 <dt id="algoappdev.dryruns.AppCallCtx.build_request"><code class="name flex">
@@ -859,30 +105,6 @@ of transactions.</p></div>
 </code></dt>
 <dd>
 <div class="desc"><p>Build the dry run request.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def build_request(self) -&gt; DryrunRequest:
-    &#34;&#34;&#34;Build the dry run request.&#34;&#34;&#34;
-    # dryrun expects signed transactions but doesn&#39;t actually use the
-    # signature data, so set it to None
-    signed_txns = [
-        SignedTransaction(t, None) if not isinstance(t, SignedTransaction) else t
-        for t in self.txns
-    ]
-    return DryrunRequest(
-        txns=signed_txns,
-        apps=self.apps,
-        accounts=self.accounts,
-        # not clear if this is accessed anywhere
-        protocol_version=None,
-        round=self.round,
-        latest_timestamp=self.latest_timestamp,
-        # sources are already compiled and included in the apps
-        sources=None,
-    )</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.AppCallCtx.suggested_params"><code class="name flex">
 <span>def <span class="ident">suggested_params</span></span>(<span>self) ‑> algosdk.future.transaction.SuggestedParams</span>
@@ -892,45 +114,12 @@ of transactions.</p></div>
 <p>Defaults to using the minimal network fee, and allowing the maximum
 transaction lifetime for execution, from the current <code>round</code> or from
 the first round.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def suggested_params(self) -&gt; SuggestedParams:
-    &#34;&#34;&#34;
-    Build minimal transaction parameters which will work with dry run.
-
-    Defaults to using the minimal network fee, and allowing the maximum
-    transaction lifetime for execution, from the current `round` or from
-    the first round.
-    &#34;&#34;&#34;
-    first = self.round if self.round is not None else 1
-    return SuggestedParams(
-        fee=ag.constants.min_txn_fee,
-        first=first,
-        # currently this is the network&#39;s maximum transaction life, but this
-        # could change and isn&#39;t part of the SDK
-        last=first + 1000 - 1,
-        gh=&#34;&#34;,
-        flat_fee=True,
-    )</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.AppCallCtx.with_account"><code class="name flex">
 <span>def <span class="ident">with_account</span></span>(<span>self, account: algosdk.v2client.models.account.Account) ‑> <a title="algoappdev.dryruns.AppCallCtx" href="#algoappdev.dryruns.AppCallCtx">AppCallCtx</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Add an account with some local state.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def with_account(self, account: Account) -&gt; &#34;AppCallCtx&#34;:
-    &#34;&#34;&#34;Add an account with some local state.&#34;&#34;&#34;
-    ctx = copy.deepcopy(self)
-    ctx.accounts.append(copy.deepcopy(account))
-    return ctx</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.AppCallCtx.with_account_opted_in"><code class="name flex">
 <span>def <span class="ident">with_account_opted_in</span></span>(<span>self, app_idx: int = None, address: str = None, local_state: List[algosdk.v2client.models.teal_key_value.TealKeyValue] = None) ‑> <a title="algoappdev.dryruns.AppCallCtx" href="#algoappdev.dryruns.AppCallCtx">AppCallCtx</a></span>
@@ -942,35 +131,6 @@ the first round.</p></div>
 the <code>accounts</code>.</p>
 <p>If <code>local_state</code> isn't provided, then the account is seen to be opted
 into the app, but with no local storage set.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def with_account_opted_in(
-    self,
-    app_idx: int = None,
-    address: str = None,
-    local_state: List[TealKeyValue] = None,
-) -&gt; &#34;AppCallCtx&#34;:
-    &#34;&#34;&#34;
-    Add an account which is opted into to an app.
-
-    If `app_idx` is omitted, defaults to the index of the last added app.
-
-    If `address` is omitted, defaults to the next available address not in
-    the `accounts`.
-
-    If `local_state` isn&#39;t provided, then the account is seen to be opted
-    into the app, but with no local storage set.
-    &#34;&#34;&#34;
-    address = address if address is not None else self._next_account_address()
-    app_idx = app_idx if app_idx is not None else self._last_app_idx()
-    account = build_account(
-        address,
-        local_states=[ApplicationLocalState(id=app_idx, key_value=local_state)],
-    )
-    return self.with_account(account)</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.AppCallCtx.with_app"><code class="name flex">
 <span>def <span class="ident">with_app</span></span>(<span>self, app: algosdk.v2client.models.application.Application) ‑> <a title="algoappdev.dryruns.AppCallCtx" href="#algoappdev.dryruns.AppCallCtx">AppCallCtx</a></span>
@@ -978,19 +138,6 @@ into the app, but with no local storage set.</p></div>
 <dd>
 <div class="desc"><p>Add an application. If this application is being called, its source
 program(s) must be supplied.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def with_app(self, app: Application) -&gt; &#34;AppCallCtx&#34;:
-    &#34;&#34;&#34;
-    Add an application. If this application is being called, its source
-    program(s) must be supplied.
-    &#34;&#34;&#34;
-    ctx = copy.deepcopy(self)
-    ctx.apps.append(copy.deepcopy(app))
-    return ctx</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.AppCallCtx.with_app_program"><code class="name flex">
 <span>def <span class="ident">with_app_program</span></span>(<span>self, program: bytes = None, app_idx: int = None, state: List[algosdk.v2client.models.teal_key_value.TealKeyValue] = None) ‑> <a title="algoappdev.dryruns.AppCallCtx" href="#algoappdev.dryruns.AppCallCtx">AppCallCtx</a></span>
@@ -999,59 +146,18 @@ program(s) must be supplied.</p></div>
 <div class="desc"><p>Add an application with defaults and possibly an approval program.</p>
 <p>If <code>app_idx</code> is omitted, defaults to the next available app idx not in
 the <code>apps</code>.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def with_app_program(
-    self,
-    program: bytes = None,
-    app_idx: int = None,
-    state: List[TealKeyValue] = None,
-) -&gt; &#34;AppCallCtx&#34;:
-    &#34;&#34;&#34;
-    Add an application with defaults and possibly an approval program.
-
-    If `app_idx` is omitted, defaults to the next available app idx not in
-    the `apps`.
-    &#34;&#34;&#34;
-    app_idx = app_idx if app_idx is not None else self._next_app_idx()
-    return self.with_app(
-        build_application(app_idx=app_idx, approval_program=program, state=state)
-    )</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.AppCallCtx.with_latest_timestamp"><code class="name flex">
 <span>def <span class="ident">with_latest_timestamp</span></span>(<span>self, latest_timestamp: int) ‑> <a title="algoappdev.dryruns.AppCallCtx" href="#algoappdev.dryruns.AppCallCtx">AppCallCtx</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Set the latest timestamp (<code>Global.latest_timestamp</code>)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def with_latest_timestamp(self, latest_timestamp: int) -&gt; &#34;AppCallCtx&#34;:
-    &#34;&#34;&#34;Set the latest timestamp (`Global.latest_timestamp`)&#34;&#34;&#34;
-    ctx = copy.deepcopy(self)
-    ctx.latest_timestamp = latest_timestamp
-    return ctx</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.AppCallCtx.with_round"><code class="name flex">
 <span>def <span class="ident">with_round</span></span>(<span>self, round: int) ‑> <a title="algoappdev.dryruns.AppCallCtx" href="#algoappdev.dryruns.AppCallCtx">AppCallCtx</a></span>
 </code></dt>
 <dd>
 <div class="desc"><p>Set the last round (<code>Global.round</code>)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def with_round(self, round: int) -&gt; &#34;AppCallCtx&#34;:
-    &#34;&#34;&#34;Set the last round (`Global.round`)&#34;&#34;&#34;
-    ctx = copy.deepcopy(self)
-    ctx.round = round
-    return ctx</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.AppCallCtx.with_txn"><code class="name flex">
 <span>def <span class="ident">with_txn</span></span>(<span>self, txn: algosdk.future.transaction.Transaction) ‑> <a title="algoappdev.dryruns.AppCallCtx" href="#algoappdev.dryruns.AppCallCtx">AppCallCtx</a></span>
@@ -1060,21 +166,6 @@ the <code>apps</code>.</p></div>
 <div class="desc"><p>Add a transaction.</p>
 <p>NOTE: for an <code>ApplicationCreateTxn</code>, the transaction sender must match
 the application creator. The zero address can be used for both.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def with_txn(self, txn: Transaction) -&gt; &#34;AppCallCtx&#34;:
-    &#34;&#34;&#34;
-    Add a transaction.
-
-    NOTE: for an `ApplicationCreateTxn`, the transaction sender must match
-    the application creator. The zero address can be used for both.
-    &#34;&#34;&#34;
-    ctx = copy.deepcopy(self)
-    ctx.txns.append(copy.deepcopy(txn))
-    return ctx</code></pre>
-</details>
 </dd>
 <dt id="algoappdev.dryruns.AppCallCtx.with_txn_call"><code class="name flex">
 <span>def <span class="ident">with_txn_call</span></span>(<span>self, on_complete: algosdk.future.transaction.OnComplete = OnComplete.NoOpOC, sender: str = None, params: algosdk.future.transaction.SuggestedParams = None, app_idx: int = None, args: List[bytes] = None) ‑> <a title="algoappdev.dryruns.AppCallCtx" href="#algoappdev.dryruns.AppCallCtx">AppCallCtx</a></span>
@@ -1085,42 +176,6 @@ the application creator. The zero address can be used for both.</p></div>
 account.</p>
 <p>If <code>params</code> is omitted, defaults to the result of <code>suggested_params</code>.</p>
 <p>If <code>app_idx</code> is omitted, defaults to the index of the last added app.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def with_txn_call(
-    self,
-    on_complete: OnComplete = OnComplete.NoOpOC,
-    sender: str = None,
-    params: SuggestedParams = None,
-    app_idx: int = None,
-    args: List[bytes] = None,
-) -&gt; &#34;AppCallCtx&#34;:
-    &#34;&#34;&#34;
-    Add a transaction which calls an app.
-
-    If `sender` is omitted, defaults to the address of the last added
-    account.
-
-    If `params` is omitted, defaults to the result of `suggested_params`.
-
-    If `app_idx` is omitted, defaults to the index of the last added app.
-    &#34;&#34;&#34;
-    app_idx = app_idx if app_idx is not None else self._last_app_idx()
-    return self.with_txn(
-        ApplicationCallTxn(
-            sender=sender if sender is not None else self._last_account_address(),
-            sp=params if params is not None else self.suggested_params(),
-            index=app_idx,
-            on_complete=on_complete,
-            app_args=args,
-            accounts=[a.address for a in self.accounts],
-            foreign_apps=[a.id for a in self.apps],
-            foreign_assets=[a.index for a in self.assets],
-        )
-    )</code></pre>
-</details>
 </dd>
 </dl>
 </dd>
@@ -1129,24 +184,7 @@ account.</p>
 <span>(</span><span>key: bytes, value: int)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>KeyDelta(key, value)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class KeyDelta(NamedTuple):
-    key: bytes
-    value: int
-
-    @staticmethod
-    def from_result(result: Dict) -&gt; &#34;KeyDelta&#34;:
-        key = base64.b64decode(result[&#34;key&#34;])
-        value = result[&#34;value&#34;].get(&#34;uint&#34;, None)
-        if value is None:
-            value = result[&#34;value&#34;].get(&#34;bytes&#34;, None)
-            value = base64.b64decode(value)
-        return KeyDelta(key, value)</code></pre>
-</details>
+<div class="desc"><p>Information about a key value which changed.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>builtins.tuple</li>
@@ -1158,19 +196,6 @@ account.</p>
 </code></dt>
 <dd>
 <div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@staticmethod
-def from_result(result: Dict) -&gt; &#34;KeyDelta&#34;:
-    key = base64.b64decode(result[&#34;key&#34;])
-    value = result[&#34;value&#34;].get(&#34;uint&#34;, None)
-    if value is None:
-        value = result[&#34;value&#34;].get(&#34;bytes&#34;, None)
-        value = base64.b64decode(value)
-    return KeyDelta(key, value)</code></pre>
-</details>
 </dd>
 </dl>
 <h3>Instance variables</h3>
@@ -1190,28 +215,7 @@ def from_result(result: Dict) -&gt; &#34;KeyDelta&#34;:
 <span>(</span><span>source: str, stack: List[Union[int, bytes]], program_counter: int)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>TraceItem(source, stack, program_counter)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class TraceItem(NamedTuple):
-    source: str
-    stack: List[Union[int, bytes]]
-    program_counter: int
-
-    def __str__(self) -&gt; str:
-        # max 12 char stack value
-        stack = [str(v) for v in self.stack]
-        stack = [(v[:7] + &#34;..&#34; + v[-3:] if len(v) &gt; 12 else v) for v in stack]
-        stack = [f&#34;{v:12s}&#34; for v in stack]
-        stack = &#34;, &#34;.join(stack)
-        # max 40 char source code
-        source = self.source
-        if len(source) &gt; 40:
-            source = source[:-37] + &#34;...&#34;
-        return f&#34;{self.program_counter:5d} :: {source:40s} :: [{stack}]&#34;</code></pre>
-</details>
+<div class="desc"><p>Information about a call trace line item.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>builtins.tuple</li>

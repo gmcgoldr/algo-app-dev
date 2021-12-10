@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
 <meta name="generator" content="pdoc 0.10.0" />
 <title>algoappdev.utils API documentation</title>
-<meta name="description" content="" />
+<meta name="description" content="Common utilities imported in other modules." />
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
 <link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
 <link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
@@ -22,76 +22,7 @@
 <h1 class="title">Module <code>algoappdev.utils</code></h1>
 </header>
 <section id="section-intro">
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">import base64
-from typing import Dict, NamedTuple, Union
-
-import algosdk as ag
-from algosdk.v2client.models.teal_key_value import TealKeyValue
-from algosdk.v2client.models.teal_value import TealValue
-
-ZERO_ADDRESS = ag.encoding.encode_address(bytes(32))
-
-
-class AlgoAppDevError(Exception):
-    pass
-
-
-class AccountMeta(NamedTuple):
-    key: str
-    address: str
-
-
-class AppMeta(NamedTuple):
-    app_id: int
-    address: str
-
-    @staticmethod
-    def from_result(result: Dict) -&gt; &#34;AppMeta&#34;:
-        app_id = result.get(&#34;application-index&#34;, None)
-        if app_id is None:
-            return None
-        address = ag.encoding.encode_address(
-            ag.encoding.checksum(b&#34;appID&#34; + app_id.to_bytes(8, &#34;big&#34;))
-        )
-        return AppMeta(app_id=app_id, address=address)
-
-
-def from_value(value: TealValue) -&gt; Union[int, bytes]:
-    if value is None:
-        return None
-    if value.get(&#34;type&#34;, None) == 1:
-        value = value.get(&#34;bytes&#34;, None)
-        value = base64.b64decode(value)
-    elif value.get(&#34;type&#34;, None) == 2:
-        value = value.get(&#34;uint&#34;, None)
-    return value
-
-
-def to_value(value: Union[int, bytes]) -&gt; TealValue:
-    if isinstance(value, bytes):
-        return TealValue(type=1, bytes=base64.b64encode(value).decode(&#34;ascii&#34;))
-    elif isinstance(value, int):
-        return TealValue(type=2, uint=value)
-    else:
-        raise AlgoAppDevError(f&#34;invalid value type: {type(value)}&#34;)
-
-
-def to_key_value(key: bytes, value: Union[int, bytes]) -&gt; TealKeyValue:
-    key = base64.b64encode(key).decode(&#34;ascii&#34;)
-    return TealKeyValue(key, to_value(value))
-
-
-def idx_to_address(idx: int) -&gt; str:
-    return ag.encoding.encode_address(idx.to_bytes(ag.constants.key_len_bytes, &#34;big&#34;))
-
-
-def address_to_idx(address: str) -&gt; int:
-    return int.from_bytes(ag.encoding.decode_address(address)[-8:], &#34;big&#34;)</code></pre>
-</details>
+<p>Common utilities imported in other modules.</p>
 </section>
 <section>
 </section>
@@ -104,79 +35,31 @@ def address_to_idx(address: str) -&gt; int:
 <span>def <span class="ident">address_to_idx</span></span>(<span>address: str) ‑> int</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def address_to_idx(address: str) -&gt; int:
-    return int.from_bytes(ag.encoding.decode_address(address)[-8:], &#34;big&#34;)</code></pre>
-</details>
+<div class="desc"><p>Calculate the integer value of a key, modulo <code>2**64</code>.</p></div>
 </dd>
 <dt id="algoappdev.utils.from_value"><code class="name flex">
 <span>def <span class="ident">from_value</span></span>(<span>value: algosdk.v2client.models.teal_value.TealValue) ‑> Union[int, bytes]</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def from_value(value: TealValue) -&gt; Union[int, bytes]:
-    if value is None:
-        return None
-    if value.get(&#34;type&#34;, None) == 1:
-        value = value.get(&#34;bytes&#34;, None)
-        value = base64.b64decode(value)
-    elif value.get(&#34;type&#34;, None) == 2:
-        value = value.get(&#34;uint&#34;, None)
-    return value</code></pre>
-</details>
+<div class="desc"><p>Convert a TEAL value to it's Python value.</p></div>
 </dd>
 <dt id="algoappdev.utils.idx_to_address"><code class="name flex">
 <span>def <span class="ident">idx_to_address</span></span>(<span>idx: int) ‑> str</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def idx_to_address(idx: int) -&gt; str:
-    return ag.encoding.encode_address(idx.to_bytes(ag.constants.key_len_bytes, &#34;big&#34;))</code></pre>
-</details>
+<div class="desc"><p>Build an address whose integer value is <code>idx</code>.</p></div>
 </dd>
 <dt id="algoappdev.utils.to_key_value"><code class="name flex">
 <span>def <span class="ident">to_key_value</span></span>(<span>key: bytes, value: Union[int, bytes]) ‑> algosdk.v2client.models.teal_key_value.TealKeyValue</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def to_key_value(key: bytes, value: Union[int, bytes]) -&gt; TealKeyValue:
-    key = base64.b64encode(key).decode(&#34;ascii&#34;)
-    return TealKeyValue(key, to_value(value))</code></pre>
-</details>
+<div class="desc"><p>Build a TEAL key-value pair from Python objects.</p></div>
 </dd>
 <dt id="algoappdev.utils.to_value"><code class="name flex">
 <span>def <span class="ident">to_value</span></span>(<span>value: Union[int, bytes]) ‑> algosdk.v2client.models.teal_value.TealValue</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def to_value(value: Union[int, bytes]) -&gt; TealValue:
-    if isinstance(value, bytes):
-        return TealValue(type=1, bytes=base64.b64encode(value).decode(&#34;ascii&#34;))
-    elif isinstance(value, int):
-        return TealValue(type=2, uint=value)
-    else:
-        raise AlgoAppDevError(f&#34;invalid value type: {type(value)}&#34;)</code></pre>
-</details>
+<div class="desc"><p>Convert a Python value to it's TEAL value.</p></div>
 </dd>
 </dl>
 </section>
@@ -188,15 +71,7 @@ def address_to_idx(address: str) -&gt; int:
 <span>(</span><span>key: str, address: str)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>AccountMeta(key, address)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class AccountMeta(NamedTuple):
-    key: str
-    address: str</code></pre>
-</details>
+<div class="desc"><p>The meta-data required to lookup an account.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>builtins.tuple</li>
@@ -218,14 +93,7 @@ def address_to_idx(address: str) -&gt; int:
 <span>(</span><span>*args, **kwargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class AlgoAppDevError(Exception):
-    pass</code></pre>
-</details>
+<div class="desc"><p>Base for all errors raised from the package.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>builtins.Exception</li>
@@ -237,25 +105,7 @@ def address_to_idx(address: str) -&gt; int:
 <span>(</span><span>app_id: int, address: str)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>AppMeta(app_id, address)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class AppMeta(NamedTuple):
-    app_id: int
-    address: str
-
-    @staticmethod
-    def from_result(result: Dict) -&gt; &#34;AppMeta&#34;:
-        app_id = result.get(&#34;application-index&#34;, None)
-        if app_id is None:
-            return None
-        address = ag.encoding.encode_address(
-            ag.encoding.checksum(b&#34;appID&#34; + app_id.to_bytes(8, &#34;big&#34;))
-        )
-        return AppMeta(app_id=app_id, address=address)</code></pre>
-</details>
+<div class="desc"><p>The meta-data required to lookup an app.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li>builtins.tuple</li>
@@ -267,20 +117,6 @@ def address_to_idx(address: str) -&gt; int:
 </code></dt>
 <dd>
 <div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">@staticmethod
-def from_result(result: Dict) -&gt; &#34;AppMeta&#34;:
-    app_id = result.get(&#34;application-index&#34;, None)
-    if app_id is None:
-        return None
-    address = ag.encoding.encode_address(
-        ag.encoding.checksum(b&#34;appID&#34; + app_id.to_bytes(8, &#34;big&#34;))
-    )
-    return AppMeta(app_id=app_id, address=address)</code></pre>
-</details>
 </dd>
 </dl>
 <h3>Instance variables</h3>

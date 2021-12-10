@@ -1,3 +1,5 @@
+"""Utilities for building and inspecting transactions."""
+
 from typing import Dict, List, Tuple
 
 import algosdk as ag
@@ -102,13 +104,14 @@ def fund_from_genesis(
 
 def group_txns(*txns: transaction.Transaction) -> List[transaction.Transaction]:
     """
-    Group multiple transactions.
+    Group multiple transactions so that they can be submitted together as an
+    atomic unit, and access one-another's data.
 
     Args:
         txns: the transactions to group
 
     Returns:
-        list of transactions, with the `group` memmber set
+        list of transactions, with the `group` member set
     """
     gid = transaction.calculate_group_id(txns)
     for txn in txns:
