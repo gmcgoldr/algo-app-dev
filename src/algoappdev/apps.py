@@ -308,13 +308,21 @@ class StateLocal(StateLocalExternal):
     def __init__(
         self,
         keys: List[State.KeyInfo],
+        account: tl.Expr = None,
     ):
         """
-        See `StateLocalExternal.__init__` but for only the current app and the
-        transaction sender.
+        See `StateLocalExternal.__init__` but for only the current app.
+
+        The account whose local state is accessed can be specified with
+        `account`, and defaults to the transaction sender.
         """
-        # only state of the current application for the sender can be written
-        super().__init__(keys, tl.Global.current_application_id(), tl.Txn.sender())
+        # only state of the current application can be written, but any
+        # account which has opted-in can be modified
+        super().__init__(
+            keys,
+            tl.Global.current_application_id(),
+            account if account is not None else tl.Txn.sender(),
+        )
 
     def get(self, key: Key) -> tl.Expr:
         """See `StateGlobal.get`."""

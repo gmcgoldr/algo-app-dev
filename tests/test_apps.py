@@ -13,13 +13,20 @@ from algosdk.future.transaction import (
 from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
 from algosdk.v2client.models.application_state_schema import ApplicationStateSchema
+from algosdk.v2client.models.teal_key_value import TealKeyValue
 
 from algoappdev import apps
 from algoappdev import dryruns as dr
 from algoappdev import transactions, utils
 from algoappdev.clients import get_app_global_key, get_app_local_key
 from algoappdev.testing import WAIT_ROUNDS, fund_account
-from algoappdev.utils import ZERO_ADDRESS, AccountMeta, AppMeta, to_key_value
+from algoappdev.utils import (
+    ZERO_ADDRESS,
+    AccountMeta,
+    AppMeta,
+    idx_to_address,
+    to_key_value,
+)
 
 MSG_REJECT = r".*transaction rejected by ApprovalProgram$"
 
@@ -207,6 +214,200 @@ def test_app_builder_default_app_constructs_defaults(algod_client: AlgodClient):
     messages = dr.get_messages(result)
     assert messages == ["ApprovalProgram", "PASS"]
     assert dr.get_local_deltas(result) == {ZERO_ADDRESS: [dr.KeyDelta(b"b", b"abc")]}
+
+
+def test_state_global_gets_value(algod_client: AlgodClient):
+    state = apps.StateGlobal([apps.State.KeyInfo("abc", tl.Int)])
+    builder = apps.AppBuilder(
+        invocations={"get_abc": tl.Return(state.get("abc"))},
+        global_state=state,
+    )
+
+    app = builder.build_application(algod_client, 1)
+    app.params.global_state = [to_key_value(state.key_info("abc").key, 123)]
+    result = algod_client.dryrun(
+        dr.AppCallCtx().with_app(app).with_txn_call(args=["get_abc"]).build_request()
+    )
+    dr.check_err(result)
+    # return value is 123
+    assert dr.get_trace(result)[-1].stack == [123]
+
+
+def test_state_global_sets_value(algod_client: AlgodClient):
+    state = apps.StateGlobal([apps.State.KeyInfo("abc", tl.Int)])
+    builder = apps.AppBuilder(
+        invocations={
+            "set_abc": tl.Seq(
+                state.set("abc", tl.Btoi(tl.Txn.application_args[1])),
+                tl.Return(apps.ONE),
+            )
+        },
+        global_state=state,
+    )
+
+    result = algod_client.dryrun(
+        dr.AppCallCtx()
+        .with_app(builder.build_application(algod_client, 1))
+        .with_txn_call(args=["set_abc", 123])
+        .build_request()
+    )
+    dr.check_err(result)
+    assert dr.get_global_deltas(result) == [dr.KeyDelta(b"abc", 123)]
+
+
+@pytest.mark.skip(reason="foreign apps not working in dryruns")
+def test_state_global_gets_external_value(algod_client: AlgodClient):
+    state_ex = apps.StateGlobalExternal([apps.State.KeyInfo("abc", tl.Int)], tl.Int(1))
+    # this app has no state, but can access another app's state
+    builder = apps.AppBuilder(
+        invocations={"get_abc": tl.Return(state_ex.load_ex_value("abc"))},
+    )
+
+    result = algod_client.dryrun(
+        dr.AppCallCtx()
+        # the external app,
+        .with_app_program(
+            app_idx=1, state=[to_key_value(state_ex.key_info("abc").key, 123)]
+        )
+        # the app to execute
+        .with_app(builder.build_application(algod_client, app_idx=2))
+        .with_txn_call(args=["get_abc"])
+        .build_request()
+    )
+    dr.check_err(result)
+    # return value is 123
+    assert dr.get_trace(result)[-1].stack == [123]
+
+
+def test_state_local_gets_value_sender(algod_client: AlgodClient):
+    state = apps.StateLocal([apps.State.KeyInfo("abc", tl.Int)])
+    builder = apps.AppBuilder(
+        invocations={"get_abc": tl.Return(state.get("abc"))},
+        local_state=state,
+    )
+
+    result = algod_client.dryrun(
+        dr.AppCallCtx()
+        .with_app(builder.build_application(algod_client, 1))
+        .with_account_opted_in(
+            local_state=[to_key_value(state.key_info("abc").key, 123)]
+        )
+        .with_txn_call(args=["get_abc"])
+        .build_request()
+    )
+    dr.check_err(result)
+    # return value is 123
+    assert dr.get_trace(result)[-1].stack == [123]
+
+
+def test_state_local_gets_value_other(algod_client: AlgodClient):
+    address_1 = idx_to_address(1)
+    address_2 = idx_to_address(2)
+
+    state = apps.StateLocal([apps.State.KeyInfo("abc", tl.Int)], tl.Addr(address_2))
+    builder = apps.AppBuilder(
+        invocations={"get_abc": tl.Return(state.get("abc"))},
+        local_state=state,
+    )
+
+    result = algod_client.dryrun(
+        dr.AppCallCtx()
+        .with_app(builder.build_application(algod_client, 1))
+        # account 2 contains the local state
+        .with_account_opted_in(
+            address=address_2,
+            local_state=[to_key_value(state.key_info("abc").key, 123)],
+        )
+        # account 1 is calling the app
+        .with_account_opted_in(address=address_1)
+        .with_txn_call(args=["get_abc"])
+        .build_request()
+    )
+    dr.check_err(result)
+    # return value is 123
+    assert dr.get_trace(result)[-1].stack == [123]
+
+
+def test_state_local_sets_value_sender(algod_client: AlgodClient):
+    address = idx_to_address(1)
+
+    state = apps.StateLocal([apps.State.KeyInfo("abc", tl.Int)])
+    builder = apps.AppBuilder(
+        invocations={
+            "set_abc": tl.Seq(state.set("abc", tl.Int(123)), tl.Return(apps.ONE))
+        },
+        local_state=state,
+    )
+
+    result = algod_client.dryrun(
+        dr.AppCallCtx()
+        .with_app(builder.build_application(algod_client, 1))
+        .with_account_opted_in(address=address)
+        .with_txn_call(args=["set_abc"])
+        .build_request()
+    )
+    dr.check_err(result)
+    assert dr.get_local_deltas(result) == {address: [dr.KeyDelta(b"abc", 123)]}
+
+
+def test_state_local_sets_value_other(algod_client: AlgodClient):
+    address_1 = idx_to_address(1)
+    address_2 = idx_to_address(2)
+
+    state = apps.StateLocal([apps.State.KeyInfo("abc", tl.Int)], tl.Addr(address_2))
+    builder = apps.AppBuilder(
+        invocations={
+            "set_abc": tl.Seq(state.set("abc", tl.Int(123)), tl.Return(apps.ONE))
+        },
+        local_state=state,
+    )
+
+    result = algod_client.dryrun(
+        dr.AppCallCtx()
+        .with_app(builder.build_application(algod_client, 1))
+        # account 2 will get the local state
+        .with_account_opted_in(address=address_2)
+        # account 1 is calling the app
+        .with_account_opted_in(address=address_1)
+        .with_txn_call(args=["set_abc"])
+        .build_request()
+    )
+    dr.check_err(result)
+    assert dr.get_local_deltas(result) == {address_2: [dr.KeyDelta(b"abc", 123)]}
+
+
+@pytest.mark.skip(reason="foreign apps not working in dryruns")
+def test_state_local_gets_external_value(algod_client: AlgodClient):
+    address_1 = idx_to_address(1)
+    address_2 = idx_to_address(2)
+
+    state_ex = apps.StateLocalExternal(
+        [apps.State.KeyInfo("abc", tl.Int)], tl.Int(1), address_2
+    )
+    # this app has no state, but can access another app's state
+    builder = apps.AppBuilder(
+        invocations={"get_abc": tl.Return(state_ex.load_ex_value("abc"))},
+    )
+
+    result = algod_client.dryrun(
+        dr.AppCallCtx()
+        # the external app,
+        .with_app_program(app_idx=1)
+        # account with local state for that app
+        .with_account_opted_in(
+            address=address_2,
+            local_state=[to_key_value(state_ex.key_info("abc").key, 123)],
+        )
+        # the app to execute
+        .with_app(builder.build_application(algod_client, app_idx=2))
+        # caller is different
+        .with_account_opted_in(address=address_1)
+        .with_txn_call(args=["set_abc"])
+        .build_request()
+    )
+    dr.check_err(result)
+    # return value is 123
+    assert dr.get_trace(result)[-1].stack == [123]
 
 
 @pytest.fixture
@@ -578,278 +779,3 @@ def test_app_builder_default_invocation_is_called(
     assert get_app_local_key(account_state, app_info.app_id, b"invoked_ab") == 0
     assert get_app_local_key(account_state, app_info.app_id, b"invoked_default") == 1
     # fmt: on
-
-
-class MultiStateOut(NamedTuple):
-    app_info_1: AppMeta
-    account_1: AccountMeta
-    app_info_2: AppMeta
-    account_2: AccountMeta
-
-
-@pytest.fixture
-def multi_state(
-    algod_client: AlgodClient,
-    kmd_client: KMDClient,
-) -> MultiStateOut:
-    account_1 = fund_account(algod_client, kmd_client, 1000000)
-    account_2 = fund_account(algod_client, kmd_client, 1000000)
-
-    # setup an app with a single global and local state value
-    state_g2 = apps.StateGlobal([apps.State.KeyInfo("ga", tl.Int, apps.ONE)])
-    state_l2 = apps.StateLocal([apps.State.KeyInfo("la", tl.Int, apps.ONE)])
-    app_2 = apps.AppBuilder(
-        global_state=state_g2,
-        local_state=state_l2,
-    )
-    txn = app_2.create_txn(
-        algod_client, account_2.address, algod_client.suggested_params()
-    )
-    txid = algod_client.send_transaction(txn.sign(account_2.key))
-    txn_info = transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-    app_info_2 = AppMeta.from_result(txn_info)
-
-    # opt-in an account to that app
-    txn = ApplicationOptInTxn(
-        account_2.address, algod_client.suggested_params(), app_info_2.app_id
-    )
-    txid = algod_client.send_transaction(txn.sign(account_2.key))
-    transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-
-    # the state of app_2, as seen by an external app (app_1)
-    state_g2r = apps.StateGlobalExternal(
-        [apps.State.KeyInfo("ga", tl.Int, apps.ONE)],
-        tl.Int(app_info_2.app_id),
-    )
-    state_l2r = apps.StateLocalExternal(
-        [apps.State.KeyInfo("la", tl.Int, apps.ONE)],
-        tl.Int(app_info_2.app_id),
-        tl.Addr(account_2.address),
-    )
-
-    # setup an app withdefault and non-default global and local state
-    state_g1 = apps.StateGlobal(
-        [
-            apps.State.KeyInfo("ga", tl.Int, apps.ONE),
-            apps.State.KeyInfo("gb", tl.Bytes, None),
-        ]
-    )
-    state_l1 = apps.StateLocal(
-        [
-            apps.State.KeyInfo("la", tl.Int, apps.ONE),
-            apps.State.KeyInfo("lb", tl.Bytes, None),
-        ]
-    )
-    # allow manipulating the state using invocations
-    app_1 = apps.AppBuilder(
-        invocations={
-            "set_gb": tl.Seq(
-                state_g1.set("gb", tl.Txn.application_args[1]),
-                tl.Return(apps.ONE),
-            ),
-            "set_lb": tl.Seq(
-                state_l1.set("lb", tl.Txn.application_args[1]),
-                tl.Return(apps.ONE),
-            ),
-            "get_ga": tl.Return(state_g1.get("ga")),
-            "get_has_gb": tl.Return(state_g1.load_ex_has_value("gb")),
-            "get_gb_cmp": tl.Return(
-                state_g1.load_ex_value("gb") == tl.Txn.application_args[1]
-            ),
-            "get_la": tl.Return(state_l1.get("la")),
-            "get_has_lb": tl.Return(state_l1.load_ex_has_value("lb")),
-            "get_lb_cmp": tl.Return(
-                state_l1.load_ex_value("lb") == tl.Txn.application_args[1]
-            ),
-            # NOTE: these experssions are loading into an external app
-            "get_ga2": tl.Return(state_g2r.load_ex_value("ga")),
-            "get_la2": tl.Return(state_l2r.load_ex_value("la")),
-        },
-        global_state=state_g1,
-        local_state=state_l1,
-    )
-    txn = app_1.create_txn(
-        algod_client, account_1.address, algod_client.suggested_params()
-    )
-    txid = algod_client.send_transaction(txn.sign(account_1.key))
-    txn_info = transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-    app_info_1 = AppMeta.from_result(txn_info)
-
-    # opt-in the other account
-    txn = ApplicationOptInTxn(
-        account_1.address, algod_client.suggested_params(), app_info_1.app_id
-    )
-    txid = algod_client.send_transaction(txn.sign(account_1.key))
-    transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-
-    return MultiStateOut(app_info_1, account_1, app_info_2, account_2)
-
-
-def test_state_can_get_global_value(
-    algod_client: AlgodClient, multi_state: MultiStateOut
-):
-    (
-        app_info_1,
-        account_1,
-        _,
-        _,
-    ) = multi_state
-    txn = ApplicationNoOpTxn(
-        account_1.address,
-        algod_client.suggested_params(),
-        app_info_1.app_id,
-        app_args=["get_ga"],
-    )
-    # passes because ga1 is set to 1
-    algod_client.send_transaction(txn.sign(account_1.key))
-
-
-def test_state_can_manipulate_global_maybe_value(
-    algod_client: AlgodClient, multi_state: MultiStateOut
-):
-    (
-        app_info_1,
-        account_1,
-        _,
-        _,
-    ) = multi_state
-
-    txn = ApplicationNoOpTxn(
-        account_1.address,
-        algod_client.suggested_params(),
-        app_info_1.app_id,
-        app_args=["get_has_gb"],
-    )
-    # doesn't have a value set for gb
-    with pytest.raises(ag.error.AlgodHTTPError, match=MSG_REJECT):
-        algod_client.send_transaction(txn.sign(account_1.key))
-
-    txn = ApplicationNoOpTxn(
-        account_1.address,
-        algod_client.suggested_params(),
-        app_info_1.app_id,
-        app_args=["set_gb", b"abc"],
-    )
-    # set to some bytes
-    txid = algod_client.send_transaction(txn.sign(account_1.key))
-    transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-
-    txn = ApplicationNoOpTxn(
-        account_1.address,
-        algod_client.suggested_params(),
-        app_info_1.app_id,
-        app_args=["get_has_gb"],
-    )
-    # has value
-    algod_client.send_transaction(txn.sign(account_1.key))
-
-    txn = ApplicationNoOpTxn(
-        account_1.address,
-        algod_client.suggested_params(),
-        app_info_1.app_id,
-        app_args=["get_gb_cmp", b"abc"],
-    )
-    # confirm the value
-    algod_client.send_transaction(txn.sign(account_1.key))
-
-
-def test_state_can_get_global_foreign_value(
-    algod_client: AlgodClient, multi_state: MultiStateOut
-):
-    app_info_1, account_1, app_info_2, account_2 = multi_state
-
-    txn = ApplicationNoOpTxn(
-        account_1.address,
-        algod_client.suggested_params(),
-        app_info_1.app_id,
-        app_args=["get_ga2"],
-        accounts=[account_2.address],
-        foreign_apps=[app_info_2.app_id],
-    )
-    # passes because ga2 is set to 1, not the same state as ga1
-    algod_client.send_transaction(txn.sign(account_1.key))
-
-
-def test_state_can_get_local_value(
-    algod_client: AlgodClient, multi_state: MultiStateOut
-):
-    (
-        app_info_1,
-        account_1,
-        _,
-        _,
-    ) = multi_state
-    txn = ApplicationNoOpTxn(
-        account_1.address,
-        algod_client.suggested_params(),
-        app_info_1.app_id,
-        app_args=["get_la"],
-    )
-    # passes because ga1 is set to 1
-    algod_client.send_transaction(txn.sign(account_1.key))
-
-
-def test_state_can_manipulate_local_maybe_value(
-    algod_client: AlgodClient, multi_state: MultiStateOut
-):
-    (
-        app_info_1,
-        account_1,
-        _,
-        _,
-    ) = multi_state
-
-    txn = ApplicationNoOpTxn(
-        account_1.address,
-        algod_client.suggested_params(),
-        app_info_1.app_id,
-        app_args=["get_has_lb"],
-    )
-    # doesn't have a value set for gb
-    with pytest.raises(ag.error.AlgodHTTPError, match=MSG_REJECT):
-        algod_client.send_transaction(txn.sign(account_1.key))
-
-    txn = ApplicationNoOpTxn(
-        account_1.address,
-        algod_client.suggested_params(),
-        app_info_1.app_id,
-        app_args=["set_lb", b"abc"],
-    )
-    # set to some bytes
-    txid = algod_client.send_transaction(txn.sign(account_1.key))
-    transactions.get_confirmed_transaction(algod_client, txid, WAIT_ROUNDS)
-
-    txn = ApplicationNoOpTxn(
-        account_1.address,
-        algod_client.suggested_params(),
-        app_info_1.app_id,
-        app_args=["get_has_lb"],
-    )
-    # has value
-    algod_client.send_transaction(txn.sign(account_1.key))
-
-    txn = ApplicationNoOpTxn(
-        account_1.address,
-        algod_client.suggested_params(),
-        app_info_1.app_id,
-        app_args=["get_lb_cmp", b"abc"],
-    )
-    # confirm the value
-    algod_client.send_transaction(txn.sign(account_1.key))
-
-
-def test_state_can_get_local_foreign_value(
-    algod_client: AlgodClient, multi_state: MultiStateOut
-):
-    app_info_1, account_1, app_info_2, account_2 = multi_state
-
-    txn = ApplicationNoOpTxn(
-        account_1.address,
-        algod_client.suggested_params(),
-        app_info_1.app_id,
-        app_args=["get_la2"],
-        accounts=[account_2.address],
-        foreign_apps=[app_info_2.app_id],
-    )
-    # passes because ga2 is set to 1, not the same state as ga1
-    algod_client.send_transaction(txn.sign(account_1.key))
