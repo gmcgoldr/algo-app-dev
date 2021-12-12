@@ -255,6 +255,22 @@ def test_state_global_sets_value(algod_client: AlgodClient):
     assert dr.get_global_deltas(result) == [dr.KeyDelta(b"abc", 123)]
 
 
+def test_state_global_drops_value(algod_client: AlgodClient):
+    state = apps.StateGlobal([apps.State.KeyInfo("abc", tl.Int)])
+    builder = apps.AppBuilder(
+        invocations={"drop_abc": tl.Seq(state.drop("abc"), tl.Return(apps.ONE))},
+        global_state=state,
+    )
+
+    app = builder.build_application(algod_client, 1)
+    app.params.global_state = [to_key_value(state.key_info("abc").key, 123)]
+    result = algod_client.dryrun(
+        dr.AppCallCtx().with_app(app).with_txn_call(args=["drop_abc"]).build_request()
+    )
+    dr.check_err(result)
+    assert dr.get_global_deltas(result) == [dr.KeyDelta(b"abc", None)]
+
+
 @pytest.mark.skip(reason="foreign apps not working in dryruns")
 def test_state_global_gets_external_value(algod_client: AlgodClient):
     state_ex = apps.StateGlobalExternal([apps.State.KeyInfo("abc", tl.Int)], tl.Int(1))
@@ -348,6 +364,28 @@ def test_state_local_sets_value_sender(algod_client: AlgodClient):
     )
     dr.check_err(result)
     assert dr.get_local_deltas(result) == {address: [dr.KeyDelta(b"abc", 123)]}
+
+
+def test_state_local_drops_value_sender(algod_client: AlgodClient):
+    address = idx_to_address(1)
+
+    state = apps.StateLocal([apps.State.KeyInfo("abc", tl.Int)])
+    builder = apps.AppBuilder(
+        invocations={"drop_abc": tl.Seq(state.drop("abc"), tl.Return(apps.ONE))},
+        local_state=state,
+    )
+
+    result = algod_client.dryrun(
+        dr.AppCallCtx()
+        .with_app(builder.build_application(algod_client, 1))
+        .with_account_opted_in(
+            address=address, local_state=[to_key_value(state.key_info("abc").key, 123)]
+        )
+        .with_txn_call(args=["drop_abc"])
+        .build_request()
+    )
+    dr.check_err(result)
+    assert dr.get_local_deltas(result) == {address: [dr.KeyDelta(b"abc", None)]}
 
 
 def test_state_local_sets_value_other(algod_client: AlgodClient):

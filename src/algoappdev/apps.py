@@ -246,6 +246,11 @@ class StateGlobal(StateGlobalExternal):
         info = self.key_info(key)
         return tl.App.globalPut(tl.Bytes(info.key), value)
 
+    def drop(self, key: Key) -> tl.Expr:
+        """Build the expression to drop the state `key`"""
+        info = self.key_info(key)
+        return tl.App.globalDel(tl.Bytes(info.key))
+
     def constructor(self) -> tl.Expr:
         """
         Build the expression to set the initial state values for those keys
@@ -333,6 +338,11 @@ class StateLocal(StateLocalExternal):
         """See `StateGlobal.set`."""
         info = self.key_info(key)
         return tl.App.localPut(self.account, tl.Bytes(info.key), value)
+
+    def drop(self, key: Key) -> tl.Expr:
+        """See `StateGlobal.drop`."""
+        info = self.key_info(key)
+        return tl.App.localDel(self.account, tl.Bytes(info.key))
 
     def constructor(self) -> tl.Expr:
         """See `StateGlobal.constructor`."""

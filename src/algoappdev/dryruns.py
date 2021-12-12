@@ -71,7 +71,7 @@ class KeyDelta(NamedTuple):
         value = result["value"].get("uint", None)
         if value is None:
             value = result["value"].get("bytes", None)
-            value = base64.b64decode(value)
+            value = base64.b64decode(value) if value is not None else value
         return KeyDelta(key, value)
 
 

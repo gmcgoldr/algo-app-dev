@@ -327,6 +327,12 @@ to store the same value into a <em>new</em> slot. But without this step, it's
 <div class="desc"><p>Build the expression to set the initial state values for those keys
 with an <code>default</code> member.</p></div>
 </dd>
+<dt id="algoappdev.apps.StateGlobal.drop"><code class="name flex">
+<span>def <span class="ident">drop</span></span>(<span>self, key: Union[int, str, bytes]) ‑> pyteal.Expr</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Build the expression to drop the state <code>key</code></p></div>
+</dd>
 <dt id="algoappdev.apps.StateGlobal.get"><code class="name flex">
 <span>def <span class="ident">get</span></span>(<span>self, key: Union[int, str, bytes]) ‑> pyteal.Expr</span>
 </code></dt>
@@ -449,12 +455,13 @@ expr = Seq(
 </dd>
 <dt id="algoappdev.apps.StateLocal"><code class="flex name class">
 <span>class <span class="ident">StateLocal</span></span>
-<span>(</span><span>keys: List[<a title="algoappdev.apps.State.KeyInfo" href="#algoappdev.apps.State.KeyInfo">State.KeyInfo</a>])</span>
+<span>(</span><span>keys: List[<a title="algoappdev.apps.State.KeyInfo" href="#algoappdev.apps.State.KeyInfo">State.KeyInfo</a>], account: pyteal.Expr = None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>See <code><a title="algoappdev.apps.StateGlobalExternal" href="#algoappdev.apps.StateGlobalExternal">StateGlobalExternal</a></code>, but for the local state.</p>
-<p>See <code><a title="algoappdev.apps.StateLocalExternal" href="#algoappdev.apps.StateLocalExternal">StateLocalExternal</a></code> but for only the current app and the
-transaction sender.</p></div>
+<p>See <code><a title="algoappdev.apps.StateLocalExternal" href="#algoappdev.apps.StateLocalExternal">StateLocalExternal</a></code> but for only the current app.</p>
+<p>The account whose local state is accessed can be specified with
+<code>account</code>, and defaults to the transaction sender.</p></div>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="algoappdev.apps.StateLocalExternal" href="#algoappdev.apps.StateLocalExternal">StateLocalExternal</a></li>
@@ -467,6 +474,12 @@ transaction sender.</p></div>
 </code></dt>
 <dd>
 <div class="desc"><p>See <code><a title="algoappdev.apps.StateGlobal.constructor" href="#algoappdev.apps.StateGlobal.constructor">StateGlobal.constructor()</a></code>.</p></div>
+</dd>
+<dt id="algoappdev.apps.StateLocal.drop"><code class="name flex">
+<span>def <span class="ident">drop</span></span>(<span>self, key: Union[int, str, bytes]) ‑> pyteal.Expr</span>
+</code></dt>
+<dd>
+<div class="desc"><p>See <code><a title="algoappdev.apps.StateGlobal.drop" href="#algoappdev.apps.StateGlobal.drop">StateGlobal.drop()</a></code>.</p></div>
 </dd>
 <dt id="algoappdev.apps.StateLocal.get"><code class="name flex">
 <span>def <span class="ident">get</span></span>(<span>self, key: Union[int, str, bytes]) ‑> pyteal.Expr</span>
@@ -609,6 +622,7 @@ accessed</dd>
 <h4><code><a title="algoappdev.apps.StateGlobal" href="#algoappdev.apps.StateGlobal">StateGlobal</a></code></h4>
 <ul class="">
 <li><code><a title="algoappdev.apps.StateGlobal.constructor" href="#algoappdev.apps.StateGlobal.constructor">constructor</a></code></li>
+<li><code><a title="algoappdev.apps.StateGlobal.drop" href="#algoappdev.apps.StateGlobal.drop">drop</a></code></li>
 <li><code><a title="algoappdev.apps.StateGlobal.get" href="#algoappdev.apps.StateGlobal.get">get</a></code></li>
 <li><code><a title="algoappdev.apps.StateGlobal.set" href="#algoappdev.apps.StateGlobal.set">set</a></code></li>
 </ul>
@@ -625,6 +639,7 @@ accessed</dd>
 <h4><code><a title="algoappdev.apps.StateLocal" href="#algoappdev.apps.StateLocal">StateLocal</a></code></h4>
 <ul class="">
 <li><code><a title="algoappdev.apps.StateLocal.constructor" href="#algoappdev.apps.StateLocal.constructor">constructor</a></code></li>
+<li><code><a title="algoappdev.apps.StateLocal.drop" href="#algoappdev.apps.StateLocal.drop">drop</a></code></li>
 <li><code><a title="algoappdev.apps.StateLocal.get" href="#algoappdev.apps.StateLocal.get">get</a></code></li>
 <li><code><a title="algoappdev.apps.StateLocal.set" href="#algoappdev.apps.StateLocal.set">set</a></code></li>
 </ul>
