@@ -1,5 +1,3 @@
-from typing import NamedTuple
-
 import algosdk as ag
 import pyteal as tl
 import pytest
@@ -10,16 +8,14 @@ from algosdk.future.transaction import (
     ApplicationNoOpTxn,
     ApplicationOptInTxn,
 )
-from algosdk.kmd import KMDClient
 from algosdk.v2client.algod import AlgodClient
 from algosdk.v2client.models.application_state_schema import ApplicationStateSchema
-from algosdk.v2client.models.teal_key_value import TealKeyValue
 
 from algoappdev import apps
 from algoappdev import dryruns as dr
 from algoappdev import transactions, utils
 from algoappdev.clients import get_app_global_key, get_app_local_key
-from algoappdev.testing import WAIT_ROUNDS, fund_account
+from algoappdev.testing import WAIT_ROUNDS
 from algoappdev.utils import (
     ZERO_ADDRESS,
     AccountMeta,

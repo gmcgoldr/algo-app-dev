@@ -1,3 +1,5 @@
+"""Run a node connected to a local private network."""
+
 import subprocess
 from pathlib import Path
 

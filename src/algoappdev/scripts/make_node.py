@@ -1,3 +1,5 @@
+"""Build a new local private network."""
+
 import shutil
 import subprocess
 from pathlib import Path
