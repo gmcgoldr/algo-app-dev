@@ -5,17 +5,15 @@ Documentation: <https://gmcgoldr.github.io/algo-app-dev/>.
 
 ## Installation
 
-You should install the package globally so that using commands run with `sudo -u algorand` can access to the package and binaries.
-
 ```bash
-sudo pip install -U algo-app-dev
+pip install -U algo-app-dev
 ```
 
 ### Pre-requisits
 
-In this documentation, it is assumed that you are running an algorand node in an Ubuntu environment.
+In this documentation, it is assumed that you are running an Algorand node in an Ubuntu environment.
 
-You can install algorand with following these commands:
+You can install Algorand with following these commands:
 
 ```bash
 sudo apt-get update
@@ -30,10 +28,10 @@ sudo apt-get install algorand
 
 ## Command line utilities
 
-The following command line utilities are isntalled with the package.
-They help streamline some common system tasks realting to algorand devleopment:
+The following command line utilities are installed with the package.
+They are used to work with a local private network and node daemons for development:
 
-- `aad-make-node`: this command can be used to setup a private, and private development node
+- `aad-make-node`: this command can be used to setup a private network
 - `aad-run-node`: this command can be used to start or stop node daemons
 
 ## Modules
@@ -42,7 +40,7 @@ The following is a brief overview of the package's functionality and organizatio
 
 ### clients
 
-The `clients` module contains a few utilities to help manage the `algod` and `kmd` daeomon clients.
+The `clients` module contains a few utilities to help manage the `algod` and `kmd` daemons clients.
 
 There are also utilities to help extract key-value information from global and local state queries.
 
@@ -111,7 +109,7 @@ AppMeta(app_id=1, address='...')
 
 ### dryruns
 
-The `dryruns` module contais utilities to help send dry runs to a node,
+The `dryruns` module contains utilities to help send dry runs to a node,
 and parse the results.
 
 Here is how the `dryruns` utilities could be used to test the contract:
@@ -155,11 +153,8 @@ NOTE: in order to use the testing functionality, you must install the `dev` depe
 This is done with the command:
 
 ```bash
-sudo pip install -U algo-app-dev[dev]
+pip install -U algo-app-dev[dev]
 ```
-
-You should run tests as the `algorand` user so that the tests can access the local daemons.
-The daemon access token file can be ready only by the `algorand` user.
 
 Start the daemons before testing, and optionally stop them after the tests run.
 
@@ -173,15 +168,20 @@ testing with `pivate` takes 10s of minutes.
 The flag `-n X` can be used to split the tests into that many parallel processes.
 
 ```bash
-sudo -u algorand aad-run-node private_dev start
-sudo -u algorand pytest -n 4 tests/
-sudo -u algorand aad-run-node private_dev stop
+# create a new network (overwrites an existing private dev node)
+aad-make-node nets/private_dev -f
+# start the node daemons
+aad-run-node nets/private_dev start
+# run the tests in 4 processes with the given node dir
+AAD_NODE_DIR=nets/private_dev/Primary pytest -n 4 tests/
+# stop the node daemons
+aad-run-node nets/private_dev stop
 ```
 
-### PyTest envioronment
+### PyTest environment
 
-The module `algoappdev.testing` contains some `pytest` fixutres that are widely applicable.
-If you want to make those fixutres available to all your tests,
+The module `algoappdev.testing` contains some `pytest` fixtures that are widely applicable.
+If you want to make those fixtures available to all your tests,
 you can create a file `conftest.py` in your test root directory and write to it:
 
 ```python
@@ -191,10 +191,10 @@ from algoappdev.testing import *
 
 It also exposes two variables which can be configured through environment variables:
 
-- `NODE_DIR`: this should be the path to the node data to work with.
-- `WAIT_ROUNDS`: this should be set to the maximun number of rounds to await transaction confirmations.
+- `NODE_DIR`: this should be the path to the node data directory
+- `WAIT_ROUNDS`: this should be set to the maximum number of rounds to await transaction confirmations.
 
-Both are read from the environment varible with corresponding name prefixed with `AAD_`.
+Both are read from the environment variable with corresponding name prefixed with `AAD_`.
 
 `NODE_DIR` defaults to the private dev node data path.
 If your system is configured differently, you will need to set this accordingly.

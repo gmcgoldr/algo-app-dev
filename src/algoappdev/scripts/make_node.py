@@ -7,8 +7,11 @@ from pathlib import Path
 import pkg_resources
 
 
-def main(network: str, path: Path, force: bool):
-    path: Path = path / network
+def main(path: Path, force: bool):
+    network = path.name
+    networks = {"private", "private_dev"}
+    if network not in networks:
+        raise ValueError(f"network path must end in: {networks}")
 
     if force:
         shutil.rmtree(str(path), ignore_errors=True)
@@ -38,28 +41,25 @@ def main(network: str, path: Path, force: bool):
         ]
     )
 
-    if network == "private_dev":
-        subprocess.call(
-            [
-                "algocfg",
-                "-d",
-                str(path / "Primary"),
-                "set",
-                "-p",
-                "EnableDeveloperAPI",
-                "-v",
-                "true",
-            ]
-        )
+    subprocess.call(
+        [
+            "algocfg",
+            "-d",
+            str(path / "Primary"),
+            "set",
+            "-p",
+            "EnableDeveloperAPI",
+            "-v",
+            "true",
+        ]
+    )
 
 
 def main_args():
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("network", choices=("private", "private_dev"))
-    # default data path is be the `nets` directory in the algorand home
-    parser.add_argument("--path", type=Path, default=Path("/var/lib/algorand/nets"))
+    parser.add_argument("path", type=Path)
     parser.add_argument("-f", "--force", action="store_true")
     args = parser.parse_args()
 

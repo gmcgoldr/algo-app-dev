@@ -11,7 +11,7 @@ from algosdk.v2client.algod import AlgodClient
 from algoappdev import clients, transactions
 from algoappdev.utils import AccountMeta
 
-NODE_DIR = Path(os.getenv("AAD_DATA", "/var/lib/algorand/nets/private_dev/Primary"))
+NODE_DIR = Path(os.getenv("AAD_NODE_DIR", "nets/private_dev/Primary"))
 WAIT_ROUNDS = int(os.getenv("ADD_WAIT_ROUNDS", 1))
 
 
@@ -21,7 +21,7 @@ def algod_client() -> AlgodClient:
     Build the client connected to the local `algod` daemon.
 
     Finds the daemon operating on the data at the directory stored in the
-    environment variable `ADD_DATA`.
+    environment variable `AAD_NODE_DIR`.
     """
     return clients.build_algod_local_client(NODE_DIR)
 
@@ -32,7 +32,7 @@ def kmd_client() -> AlgodClient:
     Build the client connected to the local `kmd` daemon.
 
     Finds the daemon operating on the data at the directory stored in the
-    environment variable `ADD_DATA`.
+    environment variable `AAD_NODE_DIR`.
     """
     return clients.build_kmd_local_client(NODE_DIR)
 
