@@ -66,7 +66,7 @@
 <dl>
 <dt id="algoappdev.apps.AppBuilder"><code class="flex name class">
 <span>class <span class="ident">AppBuilder</span></span>
-<span>(</span><span>on_create: pyteal.Expr = None, on_delete: pyteal.Expr = None, on_update: pyteal.Expr = None, on_opt_in: pyteal.Expr = None, on_close_out: pyteal.Expr = None, on_clear: pyteal.Expr = None, invocations: Dict[str, pyteal.Expr] = None, on_no_op: pyteal.Expr = None, global_state: <a title="algoappdev.apps.StateGlobal" href="#algoappdev.apps.StateGlobal">StateGlobal</a> = None, local_state: <a title="algoappdev.apps.StateLocal" href="#algoappdev.apps.StateLocal">StateLocal</a> = None)</span>
+<span>(</span><span>on_create: pyteal.Expr = None, on_delete: pyteal.Expr = None, on_update: pyteal.Expr = None, on_opt_in: pyteal.Expr = None, on_close_out: pyteal.Expr = None, on_clear: pyteal.Expr = None, invocations: Dict[str, pyteal.Expr] = None, on_no_op: pyteal.Expr = None, global_state: <a title="algoappdev.apps.StateGlobal" href="#algoappdev.apps.StateGlobal">StateGlobal</a> = None, local_state: <a title="algoappdev.apps.StateLocal" href="#algoappdev.apps.StateLocal">StateLocal</a> = None, fixed_global_schema: algosdk.future.transaction.StateSchema = None, fixed_local_schema: algosdk.future.transaction.StateSchema = None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Build the program data required for an app to execute the provided
@@ -116,6 +116,14 @@ value is zero.</li>
 </ul>
 <h3>Instance variables</h3>
 <dl>
+<dt id="algoappdev.apps.AppBuilder.fixed_global_schema"><code class="name">var <span class="ident">fixed_global_schema</span> : algosdk.future.transaction.StateSchema</code></dt>
+<dd>
+<div class="desc"><p>Alias for field number 10</p></div>
+</dd>
+<dt id="algoappdev.apps.AppBuilder.fixed_local_schema"><code class="name">var <span class="ident">fixed_local_schema</span> : algosdk.future.transaction.StateSchema</code></dt>
+<dd>
+<div class="desc"><p>Alias for field number 11</p></div>
+</dd>
 <dt id="algoappdev.apps.AppBuilder.global_state"><code class="name">var <span class="ident">global_state</span> : <a title="algoappdev.apps.StateGlobal" href="#algoappdev.apps.StateGlobal">StateGlobal</a></code></dt>
 <dd>
 <div class="desc"><p>Alias for field number 8</p></div>
@@ -594,6 +602,8 @@ accessed</dd>
 <li><code><a title="algoappdev.apps.AppBuilder.build_application" href="#algoappdev.apps.AppBuilder.build_application">build_application</a></code></li>
 <li><code><a title="algoappdev.apps.AppBuilder.clear_expr" href="#algoappdev.apps.AppBuilder.clear_expr">clear_expr</a></code></li>
 <li><code><a title="algoappdev.apps.AppBuilder.create_txn" href="#algoappdev.apps.AppBuilder.create_txn">create_txn</a></code></li>
+<li><code><a title="algoappdev.apps.AppBuilder.fixed_global_schema" href="#algoappdev.apps.AppBuilder.fixed_global_schema">fixed_global_schema</a></code></li>
+<li><code><a title="algoappdev.apps.AppBuilder.fixed_local_schema" href="#algoappdev.apps.AppBuilder.fixed_local_schema">fixed_local_schema</a></code></li>
 <li><code><a title="algoappdev.apps.AppBuilder.global_schema" href="#algoappdev.apps.AppBuilder.global_schema">global_schema</a></code></li>
 <li><code><a title="algoappdev.apps.AppBuilder.global_state" href="#algoappdev.apps.AppBuilder.global_state">global_state</a></code></li>
 <li><code><a title="algoappdev.apps.AppBuilder.invocations" href="#algoappdev.apps.AppBuilder.invocations">invocations</a></code></li>

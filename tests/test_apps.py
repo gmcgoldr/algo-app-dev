@@ -1,12 +1,14 @@
 import algosdk as ag
 import pyteal as tl
 import pytest
+from _pytest.fixtures import FixtureFunctionMarker
 from algosdk.future.transaction import (
     ApplicationClearStateTxn,
     ApplicationCloseOutTxn,
     ApplicationDeleteTxn,
     ApplicationNoOpTxn,
     ApplicationOptInTxn,
+    StateSchema,
 )
 from algosdk.v2client.algod import AlgodClient
 from algosdk.v2client.models.application_state_schema import ApplicationStateSchema
@@ -442,6 +444,47 @@ def test_state_local_gets_external_value(algod_client: AlgodClient):
     dr.check_err(result)
     # return value is 123
     assert dr.get_trace(result)[-1].stack == [123]
+
+
+def test_app_builder_uses_fixed_schema() -> AppMeta:
+    gstate = apps.StateGlobal(
+        [
+            apps.State.KeyInfo("gi1", tl.Int),
+            apps.State.KeyInfo("gi2", tl.Int),
+            apps.State.KeyInfo("gb1", tl.Bytes),
+            apps.State.KeyInfo("gb2", tl.Bytes),
+            apps.State.KeyInfo("gb3", tl.Bytes),
+        ]
+    )
+    lstate = apps.StateLocal(
+        [
+            apps.State.KeyInfo("li1", tl.Int),
+            apps.State.KeyInfo("lb1", tl.Bytes),
+            apps.State.KeyInfo("lb2", tl.Bytes),
+        ]
+    )
+
+    builder = apps.AppBuilder(
+        local_state=lstate,
+        global_state=gstate,
+    )
+
+    assert builder.global_schema().num_uints == 2
+    assert builder.global_schema().num_byte_slices == 3
+    assert builder.local_schema().num_uints == 1
+    assert builder.local_schema().num_byte_slices == 2
+
+    builder = apps.AppBuilder(
+        local_state=lstate,
+        global_state=gstate,
+        fixed_global_schema=StateSchema(4, 5),
+        fixed_local_schema=StateSchema(3, 4),
+    )
+
+    assert builder.global_schema().num_uints == 4
+    assert builder.global_schema().num_byte_slices == 5
+    assert builder.local_schema().num_uints == 3
+    assert builder.local_schema().num_byte_slices == 4
 
 
 @pytest.fixture

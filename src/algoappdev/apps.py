@@ -411,6 +411,8 @@ class AppBuilder(NamedTuple):
     on_no_op: tl.Expr = None
     global_state: StateGlobal = None
     local_state: StateLocal = None
+    fixed_global_schema: StateSchema = None
+    fixed_local_schema: StateSchema = None
 
     def approval_expr(self) -> tl.Expr:
         """
@@ -498,6 +500,8 @@ class AppBuilder(NamedTuple):
 
     def global_schema(self) -> StateSchema:
         """Build the global schema."""
+        if self.fixed_global_schema:
+            return self.fixed_global_schema
         return (
             self.global_state.schema()
             if self.global_state is not None
@@ -506,6 +510,8 @@ class AppBuilder(NamedTuple):
 
     def local_schema(self) -> StateSchema:
         """Build the local schema."""
+        if self.fixed_local_schema:
+            return self.fixed_local_schema
         return (
             self.local_state.schema() if self.local_state is not None else StateSchema()
         )
